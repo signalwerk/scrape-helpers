@@ -4,6 +4,7 @@ import path from "path";
 import util from "util";
 import cliProgress from "cli-progress";
 import { processFile } from "./queue/process.js";
+import { Semaphore } from "./semaphore.js";
 
 const writeFile = util.promisify(fs.writeFile);
 const readFile = util.promisify(fs.readFile);
@@ -22,8 +23,6 @@ export async function queue({ toDownload, downloadDir, statusFile }) {
     {
       clearOnComplete: false,
       hideCursor: true,
-      //   barCompleteChar: '\u2588',
-      //   barIncompleteChar: '\u2591',
       format: "  {barName}    {bar}  {percentage}% || {value}/{total} Files",
     },
     cliProgress.Presets.shades_classic
@@ -36,10 +35,12 @@ export async function queue({ toDownload, downloadDir, statusFile }) {
     barName: "Processing ",
   });
 
+  const downloadSemaphore = new Semaphore(20); // max 20 downloads at a time
+
   // Keep checking if there's work to do as long as at least one queue is not empty.
   while (downloadQueue.length > 0 || processQueue.length > 0) {
     await Promise.all([
-      download(),
+      downloadSemaphore.wait().then(download),
       processFile({
         processProgress,
         processQueue,
@@ -70,6 +71,9 @@ export async function queue({ toDownload, downloadDir, statusFile }) {
       }
 
       downloadProgress.increment();
+
+      // signal the semaphore when a download has finished
+      downloadSemaphore.signal();
     }
   }
 }
