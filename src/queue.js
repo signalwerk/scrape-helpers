@@ -11,7 +11,12 @@ const MAX_CONCURRENT_DOWNLOADS = 20;
 const writeFile = util.promisify(fs.writeFile);
 const readFile = util.promisify(fs.readFile);
 
-export async function queue({ toDownload, downloadDir, statusFile }) {
+export async function queue({
+  toDownload,
+  downloadDir,
+  statusFile,
+  allowDomains,
+}) {
   console.log("Starting queue");
 
   let downloadQueue = toDownload || [];
@@ -61,6 +66,7 @@ export async function queue({ toDownload, downloadDir, statusFile }) {
         downloadQueue,
         downloadProgress,
         processedUrls,
+        allowDomains,
       }),
     ]);
   }

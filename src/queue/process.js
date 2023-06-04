@@ -1,44 +1,9 @@
 import cheerio from "cheerio";
 import fs from "fs";
-import url from "url";
 import util from "util";
+import { getNormalizedURL } from "../normalizeURL.js";
 
 const readFile = util.promisify(fs.readFile);
-
-function normalizeURL(originalUrl, pageUrl) {
-  let normalizedUrl = originalUrl.replace("//", "/");
-  let parsedUrl = new url.URL(normalizedUrl, pageUrl);
-
-  // Remove anchors from the URL
-  parsedUrl.hash = "";
-
-  // Remove the default port for http and https
-  if (parsedUrl.protocol === "http:" && parsedUrl.port === "80") {
-    parsedUrl.port = "";
-  }
-  if (parsedUrl.protocol === "https:" && parsedUrl.port === "443") {
-    parsedUrl.port = "";
-  }
-
-
-  // remove trailing slash
-  if (parsedUrl.pathname.endsWith("/")) {
-    parsedUrl.pathname = parsedUrl.pathname.slice(0, -1);
-  }
-
-  // remove get parameters
-  parsedUrl.search = "";
-
-  // set protocol to https
-  parsedUrl.protocol = "https:";
-
-  // Sort GET parameters to avoid duplicate downloads
-  // let searchParams = new URLSearchParams(parsedUrl.search);
-  // searchParams.sort();
-  // parsedUrl.search = searchParams.toString();
-
-  return parsedUrl.href;
-}
 
 export async function processFile({
   processProgress,
@@ -46,6 +11,7 @@ export async function processFile({
   downloadQueue,
   downloadProgress,
   processedUrls,
+  allowDomains,
 }) {
   while (processQueue.length > 0) {
     const { url, path } = processQueue.shift();
@@ -55,16 +21,38 @@ export async function processFile({
     $("a").each((index, element) => {
       let originalUrl = $(element).attr("href");
       if (originalUrl) {
-        const normalizedUrl = normalizeURL(originalUrl, url);
+        const normalizedUrl = getNormalizedURL(originalUrl, url, {
+          enforceHttps: true,
+          removeTrailingSlash: true,
+          removeHash: true,
+          searchParameters: "remove",
+        });
+        const normalizedHref = normalizedUrl.href;
+
         if (
-          !downloadQueue.includes(normalizedUrl) &&
-          !processedUrls[normalizedUrl]
+          allowDomains.includes(normalizedUrl.hostname) ||
+          isSubdomain(normalizedUrl.hostname, allowDomains)
         ) {
-          downloadQueue.push(normalizedUrl);
-          downloadProgress.setTotal(downloadQueue.length);
+          if (
+            !downloadQueue.includes(normalizedHref) &&
+            !processedUrls[normalizedHref]
+          ) {
+            downloadQueue.push(normalizedHref);
+            downloadProgress.setTotal(downloadQueue.length);
+          }
         }
       }
     });
     processProgress.increment();
   }
+}
+
+function isSubdomain(subdomain, domains) {
+  for (let i = 0; i < domains.length; i++) {
+    const domain = domains[i];
+    if (subdomain.endsWith(`.${domain}`) || subdomain === domain) {
+      return true;
+    }
+  }
+  return false;
 }
