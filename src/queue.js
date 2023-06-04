@@ -28,11 +28,11 @@ export async function queue({
   }
 
   const appendToLog = (line) => {
-    fs.appendFile(logFile, line + "\n", (err) => {
-      if (err) {
-        console.error("Failed to write to log file:", err);
-      }
-    });
+    try {
+      fs.appendFileSync(logFile, line + "\n");
+    } catch (err) {
+      console.error("Failed to write to log file:", err);
+    }
   };
 
   const multi = new cliProgress.MultiBar(
@@ -56,20 +56,18 @@ export async function queue({
   // Keep checking if there's work to do as long as at least one queue is not empty.
   while (downloadQueue.length > 0 || processQueue.length > 0) {
     await Promise.all([
-      downloadSemaphore
-        .wait()
-        .then(() =>
-          download({
-            appendToLog,
-            downloadQueue,
-            processedUrls,
-            downloadProgress,
-            processQueue,
-            processProgress,
-            downloadDir,
-            statusFile,
-          })
-        ),
+      downloadSemaphore.wait().then(() =>
+        download({
+          appendToLog,
+          downloadQueue,
+          processedUrls,
+          downloadProgress,
+          processQueue,
+          processProgress,
+          downloadDir,
+          statusFile,
+        })
+      ),
       processFile({
         appendToLog,
         processProgress,

@@ -15,7 +15,11 @@ export async function processFile({
   allowDomains,
 }) {
   while (processQueue.length > 0) {
+    appendToLog(`START processFile:`);
     const { url, path } = processQueue.shift();
+
+    appendToLog(`START processFile: ${url}`);
+    appendToLog(`                   ${path}`);
 
     const content = await readFile(path, "utf-8");
     const $ = cheerio.load(content);
@@ -40,7 +44,7 @@ export async function processFile({
           ) {
             appendToLog(`Append Downloading: ${normalizedHref} (from ${url})`);
             downloadQueue.push(normalizedHref);
-            downloadProgress.setTotal(downloadQueue.length);
+            downloadProgress.setTotal(downloadProgress.total + 1);
           }
         }
       }

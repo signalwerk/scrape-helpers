@@ -20,11 +20,25 @@ export async function download({
 
     if (!processedUrls[url]) {
       try {
+        const options = {
+          timeout: 5000, // Set a timeout of 5 seconds
+          url,
+        };
+
         appendToLog(`START Downloading: ${url}`);
-        const response = await axios.get(url, { responseType: "arraybuffer" });
-        appendToLog(`END Downloading`);
+
+        // const response = await axios({ ...options, method: "head" });
+        // const response = await axios({
+        //     ...options,
+        //     method: "get",
+        //     responseType: "arraybuffer",
+        //   });
+        const response = await axios({ ...options, method: "get" });
+
+        appendToLog(`                   END ${url}`);
 
         const contentType = response.headers["content-type"];
+
         const isHTML = contentType && contentType.includes("text/html");
 
         let filePath = null;
@@ -36,13 +50,12 @@ export async function download({
 
         const fileStatus = { url, status: response.status, path: filePath };
         processQueue.push({ url, path: filePath });
-        processProgress.setTotal(processQueue.length);
+        processProgress.setTotal(processProgress.total + 1);
         processedUrls[url] = fileStatus;
       } catch (error) {
-        // console.error(`Failed to download ${url}: ${error.message}`);
+        appendToLog(`                   ERROR ${url}`);
+        appendToLog(`Failed to download ${url}: ${error.message}`);
         processedUrls[url] = { url, status: "error", error: error.message };
-        processQueue.push({ url, path: null });
-        processProgress.setTotal(processQueue.length);
       }
 
       await writeFile(statusFile, JSON.stringify(processedUrls, null, 2));
