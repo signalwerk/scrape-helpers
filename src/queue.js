@@ -16,6 +16,7 @@ export async function queue({
   downloadDir,
   statusFile,
   allowDomains,
+  downloadedFile,
   logFile,
 }) {
   console.log("Starting queue");
@@ -23,8 +24,18 @@ export async function queue({
   let downloadQueue = toDownload || [];
   let processQueue = [];
   let processedUrls = {};
-  if (fs.existsSync(statusFile)) {
-    processedUrls = JSON.parse(await readFile(statusFile, "utf-8"));
+  let downloadedUrls = {};
+  if (fs.existsSync(downloadedFile)) {
+    downloadedUrls = JSON.parse(await readFile(downloadedFile, "utf-8"));
+
+    for (const [key, value] of Object.entries(downloadedUrls)) {
+      if (value.path && value.status !== "error") {
+        processQueue.push({
+          url: value.url,
+          path: value.path,
+        });
+      }
+    }
   }
 
   const appendToLog = (line) => {
@@ -56,8 +67,12 @@ export async function queue({
   // Keep checking if there's work to do as long as at least one queue is not empty.
   while (downloadQueue.length > 0 || processQueue.length > 0) {
     await Promise.all([
-      downloadSemaphore.wait().then(() =>
-        download({
+      (async () => {
+        // Wait for a slot to become available
+        await downloadSemaphore.wait();
+
+        // When a slot becomes available, start a download task
+        await download({
           appendToLog,
           downloadQueue,
           processedUrls,
@@ -65,9 +80,17 @@ export async function queue({
           processQueue,
           processProgress,
           downloadDir,
-          statusFile,
-        })
-      ),
+          downloadedFile,
+          // Pass the semaphore as a parameter to the download function
+          downloadSemaphore,
+          downloadedUrls,
+          allowDomains,
+        });
+
+        // Signal that a slot is now available
+        downloadSemaphore.signal();
+      })(),
+
       processFile({
         appendToLog,
         processProgress,
