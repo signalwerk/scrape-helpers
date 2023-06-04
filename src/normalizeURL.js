@@ -1,4 +1,10 @@
-import url from "url";
+import {URL} from "url";
+
+export function absoluteUrl(url, baseUrl) {
+  let parsedUrl = new URL(url, baseUrl);
+
+  return parsedUrl.href;
+}
 
 export function getNormalizedURL(
   originalUrl,
@@ -7,10 +13,10 @@ export function getNormalizedURL(
     enforceHttps: false,
     removeTrailingSlash: false,
     removeHash: false,
-    searchParameters: "sort",
+    searchParameters: "keep",
   }
 ) {
-  let parsedUrl = new url.URL(originalUrl, pageUrl);
+  let parsedUrl = new URL(originalUrl, pageUrl);
 
   // Remove hash if the option is set to true
   if (options.removeHash) {

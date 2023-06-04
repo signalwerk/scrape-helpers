@@ -6,7 +6,7 @@ import { processFile } from "./queue/process.js";
 import { download } from "./queue/download.js";
 import { Semaphore } from "./semaphore.js";
 
-const MAX_CONCURRENT_DOWNLOADS = 20;
+const MAX_CONCURRENT_DOWNLOADS = 50;
 
 const writeFile = util.promisify(fs.writeFile);
 const readFile = util.promisify(fs.readFile);
