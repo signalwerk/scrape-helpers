@@ -5,21 +5,24 @@ import util from "util";
 
 const writeFile = util.promisify(fs.writeFile);
 
-export async function download(
+export async function download({
+  appendToLog,
   downloadQueue,
   processedUrls,
   downloadProgress,
   processQueue,
   processProgress,
   downloadDir,
-  statusFile
-) {
+  statusFile,
+}) {
   while (downloadQueue.length > 0) {
     const url = downloadQueue.shift();
 
     if (!processedUrls[url]) {
       try {
+        appendToLog(`START Downloading: ${url}`);
         const response = await axios.get(url, { responseType: "arraybuffer" });
+        appendToLog(`END Downloading`);
 
         const contentType = response.headers["content-type"];
         const isHTML = contentType && contentType.includes("text/html");

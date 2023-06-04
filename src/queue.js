@@ -16,6 +16,7 @@ export async function queue({
   downloadDir,
   statusFile,
   allowDomains,
+  logFile,
 }) {
   console.log("Starting queue");
 
@@ -25,6 +26,14 @@ export async function queue({
   if (fs.existsSync(statusFile)) {
     processedUrls = JSON.parse(await readFile(statusFile, "utf-8"));
   }
+
+  const appendToLog = (line) => {
+    fs.appendFile(logFile, line + "\n", (err) => {
+      if (err) {
+        console.error("Failed to write to log file:", err);
+      }
+    });
+  };
 
   const multi = new cliProgress.MultiBar(
     {
@@ -50,17 +59,19 @@ export async function queue({
       downloadSemaphore
         .wait()
         .then(() =>
-          download(
+          download({
+            appendToLog,
             downloadQueue,
             processedUrls,
             downloadProgress,
             processQueue,
             processProgress,
             downloadDir,
-            statusFile
-          )
+            statusFile,
+          })
         ),
       processFile({
+        appendToLog,
         processProgress,
         processQueue,
         downloadQueue,

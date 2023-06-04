@@ -6,6 +6,7 @@ import { getNormalizedURL } from "../normalizeURL.js";
 const readFile = util.promisify(fs.readFile);
 
 export async function processFile({
+  appendToLog,
   processProgress,
   processQueue,
   downloadQueue,
@@ -37,6 +38,7 @@ export async function processFile({
             !downloadQueue.includes(normalizedHref) &&
             !processedUrls[normalizedHref]
           ) {
+            appendToLog(`Append Downloading: ${normalizedHref} (from ${url})`);
             downloadQueue.push(normalizedHref);
             downloadProgress.setTotal(downloadQueue.length);
           }
