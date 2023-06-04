@@ -17,29 +17,29 @@ function normalizeURL(originalUrl, pageUrl) {
   return parsedUrl.href;
 }
 
-export async function processFile(
+export async function processFile({
   processProgress,
   processQueue,
   downloadQueue,
-  downloadProgress
-) {
+  downloadProgress,
+}) {
   while (processQueue.length > 0) {
     const filePath = processQueue.shift();
 
     const content = await readFile(filePath, "utf-8");
     const $ = cheerio.load(content);
     $("a").each((index, element) => {
-      let originalUrl = $(element).attr("href");
-      if (originalUrl) {
-        const normalizedUrl = normalizeURL(originalUrl, filePath);
-        if (
-          !downloadQueue.includes(normalizedUrl) &&
-          !processedUrls[normalizedUrl]
-        ) {
-          downloadQueue.push(normalizedUrl);
-          downloadProgress.setTotal(downloadQueue.length);
-        }
-      }
+      // let originalUrl = $(element).attr("href");
+      // if (originalUrl) {
+      //   const normalizedUrl = normalizeURL(originalUrl, filePath);
+      //   if (
+      //     !downloadQueue.includes(normalizedUrl) &&
+      //     !processedUrls[normalizedUrl]
+      //   ) {
+      //     downloadQueue.push(normalizedUrl);
+      //     downloadProgress.setTotal(downloadQueue.length);
+      //   }
+      // }
     });
     processProgress.increment();
   }

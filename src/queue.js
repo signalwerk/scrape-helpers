@@ -40,12 +40,12 @@ export async function queue({ toDownload, downloadDir, statusFile }) {
   while (downloadQueue.length > 0 || processQueue.length > 0) {
     await Promise.all([
       download(),
-      processFile(
+      processFile({
         processProgress,
         processQueue,
         downloadQueue,
-        downloadProgress
-      ),
+        downloadProgress,
+      }),
     ]);
   }
 
@@ -63,6 +63,8 @@ export async function queue({ toDownload, downloadDir, statusFile }) {
 
         const fileStatus = { url, status: response.status, path: filePath };
         processQueue.push(fileStatus.path);
+        processProgress.setTotal(processQueue.length);
+
         processedUrls[url] = fileStatus;
         await writeFile(statusFile, JSON.stringify(processedUrls));
       }
