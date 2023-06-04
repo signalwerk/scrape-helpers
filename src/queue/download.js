@@ -24,6 +24,19 @@ function isSubdomain(subdomain, domains) {
   }
   return false;
 }
+function isMediaURL(url) {
+  // Specify the media-type endings
+  const mediaTypes = [".pdf", ".jpg", ".jpeg", ".png", ".gif"];
+
+  // Check if the getNormalizedURL ends with any media-type ending
+  for (const mediaType of mediaTypes) {
+    if (url.toLowerCase().endsWith(mediaType)) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 export async function download({
   appendToLog,
@@ -49,8 +62,9 @@ export async function download({
     const normalizedUrlHref = normalizedUrl.href;
 
     if (
-      allowDomains.includes(normalizedUrl.hostname) ||
-      isSubdomain(normalizedUrl.hostname, allowDomains)
+      (allowDomains.includes(normalizedUrl.hostname) ||
+        isSubdomain(normalizedUrl.hostname, allowDomains)) &&
+      !isMediaURL(normalizedUrlHref)
     ) {
       if (!downloadedUrls[normalizedUrlHref]) {
         const fileStatus = {
@@ -62,7 +76,7 @@ export async function download({
 
         try {
           const options = {
-            timeout: 5000, // Set a timeout of 5 seconds
+            timeout: 8000, // Set a timeout
             url: normalizedUrlHref,
           };
 

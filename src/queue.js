@@ -40,7 +40,10 @@ export async function queue({
 
   const appendToLog = (line) => {
     try {
-      fs.appendFileSync(logFile, line + "\n");
+      const timestamp = new Date().toISOString(); // Get the current timestamp in ISO format
+      const lineWithTimestamp = `${timestamp} ${line}`; // Add the timestamp to the line
+
+      fs.appendFileSync(logFile, lineWithTimestamp + "\n");
     } catch (err) {
       console.error("Failed to write to log file:", err);
     }
