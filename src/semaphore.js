@@ -27,4 +27,9 @@ export class Semaphore {
       return new Promise((resolve) => this.tasks.push(resolve));
     }
   }
+
+  availableSlots() {
+    // This method will return the number of available slots.
+    return this.count;
+  }
 }
