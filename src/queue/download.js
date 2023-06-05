@@ -7,6 +7,25 @@ import { getNormalizedURL, normalizeURL } from "../normalizeURL.js";
 
 const writeFile = util.promisify(fs.writeFile);
 
+
+
+function isDomainAllowed(domain, allowDomains, disallowDomains) {
+  if (disallowDomains.includes(domain)) {
+    return false;
+  }
+
+
+
+  
+
+  if (allowDomains.length === 0 || (allowDomains.includes(domain) ||
+  isSubdomain(domain, allowDomains)) ) {
+    return true;
+  }
+
+  return false;
+}
+
 function ensureDirectoryExistence(filePath) {
   var dirname = path.dirname(filePath);
   if (!fs.existsSync(dirname)) {
@@ -26,7 +45,7 @@ function isSubdomain(subdomain, domains) {
 }
 function isMediaURL(url) {
   // Specify the media-type endings
-  const mediaTypes = [".pdf", ".jpg", ".jpeg", ".png", ".gif"];
+  const mediaTypes = [".pdf", ".jpg", ".jpeg", ".png", ".gif", ".docx", ".doc"];
 
   // Check if the getNormalizedURL ends with any media-type ending
   for (const mediaType of mediaTypes) {
@@ -48,7 +67,7 @@ export async function download({
   downloadDir,
   downloadedFile,
   allowDomains,
-  downloadSemaphore,
+  disallowDomains,
 }) {
   while (downloadQueue.length > 0) {
     const url = downloadQueue.shift();
@@ -63,8 +82,8 @@ export async function download({
     const normalizedUrlHref = normalizedUrl.href;
 
     if (
-      (allowDomains.includes(normalizedUrl.hostname) ||
-        isSubdomain(normalizedUrl.hostname, allowDomains)) &&
+      isDomainAllowed(normalizedUrl.hostname, allowDomains, disallowDomains) &&
+
       !isMediaURL(normalizedUrlHref)
     ) {
       if (!downloadedUrls[normalizedUrlHref]) {
@@ -77,7 +96,7 @@ export async function download({
 
         try {
           const options = {
-            timeout: 8000, // Set a timeout
+            timeout: 15000, // Set a timeout
             url: normalizedUrlHref,
           };
 
@@ -120,13 +139,13 @@ export async function download({
               ensureDirectoryExistence(filePath);
 
               await writeFile(filePath, response.data);
+
+              fileStatus.status = response.status;
+              fileStatus.path = filePath;
+
+              processQueue.push({ url: normalizedUrlHref, path: filePath });
+              processProgress.setTotal(processProgress.total + 1);
             }
-
-            fileStatus.status = response.status;
-            fileStatus.path = filePath;
-
-            processQueue.push({ url: normalizedUrlHref, path: filePath });
-            processProgress.setTotal(processProgress.total + 1);
 
             downloadedUrls[normalizedResponseUrl] = fileStatus;
           }
@@ -150,7 +169,6 @@ export async function download({
 
     downloadProgress.increment();
 
-    // Signal that a slot is now available
-    downloadSemaphore.signal();
+  
   }
 }

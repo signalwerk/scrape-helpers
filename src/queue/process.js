@@ -13,7 +13,6 @@ export async function processFile({
   downloadQueue,
   downloadProgress,
   processedUrls,
-  allowDomains,
 }) {
   while (processQueue.length > 0) {
     appendToLog(`START processFile:`);
