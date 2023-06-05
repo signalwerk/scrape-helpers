@@ -48,6 +48,7 @@ export async function download({
   downloadDir,
   downloadedFile,
   allowDomains,
+  downloadSemaphore,
 }) {
   while (downloadQueue.length > 0) {
     const url = downloadQueue.shift();
@@ -148,5 +149,8 @@ export async function download({
     }
 
     downloadProgress.increment();
+
+    // Signal that a slot is now available
+    downloadSemaphore.signal();
   }
 }

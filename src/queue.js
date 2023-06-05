@@ -69,7 +69,10 @@ export async function queue({
 
   // Keep checking if there's work to do as long as at least one queue is not empty.
   while (downloadQueue.length > 0 || processQueue.length > 0) {
-    await Promise.all([
+    const tasks = [];
+
+    // for (let i = 0; i < MAX_CONCURRENT_DOWNLOADS; i++) {
+    tasks.push(
       (async () => {
         // Wait for a slot to become available
         await downloadSemaphore.wait();
@@ -88,12 +91,13 @@ export async function queue({
           downloadSemaphore,
           downloadedUrls,
           allowDomains,
+          downloadSemaphore,
         });
+      })()
+    );
+    // }
 
-        // Signal that a slot is now available
-        downloadSemaphore.signal();
-      })(),
-
+    tasks.push(
       processFile({
         appendToLog,
         processProgress,
@@ -102,8 +106,10 @@ export async function queue({
         downloadProgress,
         processedUrls,
         allowDomains,
-      }),
-    ]);
+      })
+    );
+
+    await Promise.all(tasks);
   }
 
   multi.stop();
