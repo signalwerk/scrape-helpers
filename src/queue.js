@@ -13,6 +13,7 @@ const eventEmitter = new EventEmitter();
 
 export async function queue({
   toDownload,
+  typesToDownload,
   downloadDir,
   allowDomains,
   disallowDomains,
@@ -23,6 +24,7 @@ export async function queue({
 
   eventEmitter.on("newDownload", async () => {
     await download({
+      typesToDownload,
       appendToLog,
       downloadQueue,
       processedUrls,
@@ -40,6 +42,7 @@ export async function queue({
 
   eventEmitter.on("newProcessing", async () => {
     processFile({
+      typesToDownload,
       appendToLog,
       processProgress,
       processQueue,
@@ -65,7 +68,11 @@ export async function queue({
         downloadedUrls[key] = value;
       }
 
-      if (value.path && value.status !== "error") {
+      if (
+        value.path &&
+        value.status !== "error" &&
+        value.mimeType === "text/html"
+      ) {
         processQueue.push({
           url: value.url,
           path: value.path,

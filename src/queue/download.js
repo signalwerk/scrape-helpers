@@ -4,6 +4,7 @@ import path from "path";
 import util from "util";
 import { getMimeType, getFsPath } from "../getFsPath.js";
 import { getNormalizedURL, normalizeURL } from "../normalizeURL.js";
+import { ensureDirectoryExistence } from "../ensureDirectoryExistence.js";
 
 const writeFile = util.promisify(fs.writeFile);
 
@@ -21,14 +22,6 @@ function isDomainAllowed(domain, allowDomains, disallowDomains) {
   }
 
   return false;
-}
-
-function ensureDirectoryExistence(filePath) {
-  var dirname = path.dirname(filePath);
-  if (!fs.existsSync(dirname)) {
-    fs.mkdirSync(dirname, { recursive: true });
-  }
-  return true;
 }
 
 function isSubdomain(subdomain, domains) {
@@ -55,6 +48,7 @@ function isMediaURL(url) {
 }
 
 export async function download({
+  typesToDownload,
   appendToLog,
   downloadQueue,
   downloadedUrls,
@@ -79,13 +73,14 @@ export async function download({
     const normalizedUrlHref = normalizedUrl.href;
 
     if (
-      isDomainAllowed(normalizedUrl.hostname, allowDomains, disallowDomains) &&
-      !isMediaURL(normalizedUrlHref)
+      isDomainAllowed(normalizedUrl.hostname, allowDomains, disallowDomains) //&&
+      //   !isMediaURL(normalizedUrlHref)
     ) {
       if (!downloadedUrls[normalizedUrlHref]) {
         const fileStatus = {
           url: normalizedUrlHref,
           status: null,
+          mimeType: null,
           path: null,
           error: null,
         };
@@ -94,6 +89,7 @@ export async function download({
           const options = {
             timeout: 15000, // Set a timeout
             url: normalizedUrlHref,
+            responseType: "stream",
           };
 
           appendToLog(`START Downloading: ${normalizedUrlHref}`);
@@ -129,16 +125,23 @@ export async function download({
 
           if (!downloadedUrls[normalizedResponseUrl]) {
             let filePath = null;
+            const fsPath = getFsPath(normalizedResponseUrl, mimeType);
+            filePath = path.join(downloadDir, fsPath);
+            ensureDirectoryExistence(filePath);
+
+            //   await writeFile(filePath, response.data);
+            const writeStream = fs.createWriteStream(filePath);
+            response.data.pipe(writeStream);
+            await new Promise((resolve, reject) => {
+              writeStream.on("finish", resolve);
+              writeStream.on("error", reject);
+            });
+
+            fileStatus.status = response.status;
+            fileStatus.path = filePath;
+            fileStatus.mimeType = mimeType;
+
             if (mimeType === "text/html") {
-              const fsPath = getFsPath(normalizedResponseUrl, mimeType);
-              filePath = path.join(downloadDir, fsPath);
-              ensureDirectoryExistence(filePath);
-
-              await writeFile(filePath, response.data);
-
-              fileStatus.status = response.status;
-              fileStatus.path = filePath;
-
               processQueue.push({ url: normalizedUrlHref, path: filePath });
               processProgress.setTotal(processProgress.total + 1);
             }
