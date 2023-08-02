@@ -66,8 +66,8 @@ switch (args[0]) {
     console.log("");
     console.log("Options:");
     console.log("  --clear     Delete the data folder");
-    console.log("  --sitemap   Perform scraping from sitemap");
-    console.log("  --dl        Download all files from sitemap");
+    console.log("  --sitemap   Get sitemap");
+    console.log("  --dl        Download all files from domain");
     console.log("  --help      Show help");
     break;
   default:
