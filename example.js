@@ -7,7 +7,7 @@ import process from "process";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import path from "path";
-import fs from "fs/promises"; // import file system module for handling file writes
+import fs from "fs/promises";
 
 const PROTOCOL = "https";
 const DOMAIN = "domain.com";
@@ -34,23 +34,13 @@ async function runQueue() {
 
   const HTML_DIR = path.join(DATA_FOLDER, "html"); // specify file path for sitemap
   const DOWNLOAD_FILE = path.join(DATA_FOLDER, "download.json"); // specify file path for sitemap
-  const LOGG_FILE = path.join(DATA_FOLDER, "dl.log"); // specify file path for sitemap
+  const LOG_FILE = path.join(DATA_FOLDER, "dl.log"); // specify file path for sitemap
 
   const response = await queue({
     toDownload: [`${PROTOCOL}://${DOMAIN}/`],
-    typesToDownload: [
-      "html",
-      "image",
-      "video",
-      "audio",
-      "pdf",
-      "json",
-      "xml",
-      "stylesheet",
-      "script",
-    ],
+    typesToDownload: ["html", "image", "stylesheet", "script"],
     downloadedFile: DOWNLOAD_FILE,
-    logFile: LOGG_FILE,
+    logFile: LOG_FILE,
     downloadDir: HTML_DIR,
     allowDomains: [DOMAIN, "unpkg.com"],
     disallowDomains: [],
@@ -75,7 +65,9 @@ switch (args[0]) {
     console.log("Usage: node cli.js [options]");
     console.log("");
     console.log("Options:");
+    console.log("  --clear     Delete the data folder");
     console.log("  --sitemap   Perform scraping from sitemap");
+    console.log("  --dl        Download all files from sitemap");
     console.log("  --help      Show help");
     break;
   default:

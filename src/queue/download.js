@@ -129,7 +129,6 @@ export async function download({
             filePath = path.join(downloadDir, fsPath);
             ensureDirectoryExistence(filePath);
 
-            //   await writeFile(filePath, response.data);
             const writeStream = fs.createWriteStream(filePath);
             response.data.pipe(writeStream);
             await new Promise((resolve, reject) => {
