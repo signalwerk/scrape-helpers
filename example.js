@@ -2,6 +2,7 @@
 
 import { fetchSiteMap } from "./packages/scrape-helpers/src/sitemap.js";
 import { queue } from "./packages/scrape-helpers/src/queue.js";
+import { ensureDirectoryExistence } from "./packages/scrape-helpers/src/ensureDirectoryExistence.js";
 import process from "process";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
@@ -37,10 +38,21 @@ async function runQueue() {
 
   const response = await queue({
     toDownload: [`${PROTOCOL}://${DOMAIN}/`],
+    typesToDownload: [
+      "html",
+      "image",
+      "video",
+      "audio",
+      "pdf",
+      "json",
+      "xml",
+      "stylesheet",
+      "script",
+    ],
     downloadedFile: DOWNLOAD_FILE,
     logFile: LOGG_FILE,
     downloadDir: HTML_DIR,
-    allowDomains: [DOMAIN],
+    allowDomains: [DOMAIN, "unpkg.com"],
     disallowDomains: [],
   }); // wait for response
   // console.log(`Queue written to ${response}`); // log success message
@@ -48,6 +60,11 @@ async function runQueue() {
 
 // Handle different cases using a switch statement
 switch (args[0]) {
+  case "--clear":
+    console.log("Clearing...");
+    await fs.rm(DATA_FOLDER, { recursive: true, force: true });
+    ensureDirectoryExistence(SITEMAP_FILE);
+    break;
   case "--sitemap":
     sitemap();
     break;
