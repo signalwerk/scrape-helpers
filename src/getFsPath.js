@@ -37,10 +37,11 @@ function fixFilename(name) {
 // https://stackoverflow.com/questions/70643383/which-mime-types-contain-charset-utf-8-directive
 export function getFsPath(fsPath, mime) {
   const mimeExt = mime2ext[mime];
-  if (!mimeExt) {
-    console.error("no ext for mime", mime);
-    throw new Error(`No extension for mime type ${mime}`);
-  }
+  // if (!mimeExt) {
+  //   console.error("no ext for mime", mime);
+  //   console.log("getFsPath", fsPath, mime);
+  //   throw new Error(`No extension for mime type ${mime}`);
+  // }
 
   const url = new URL(fsPath);
   const pathname = url.pathname;
@@ -48,11 +49,12 @@ export function getFsPath(fsPath, mime) {
   const params = new URLSearchParams(url.search).toString(); // ?.sort()?.toString() || "";
 
   const dirname = path.dirname(pathname);
-  const basename = path.basename(pathname);
   // const basename = path.basename(pathname, path.extname(pathname));
 
   const fsExt = getExtension(pathname);
-  const ext = mimeExt || fsExt;
+  const ext = fsExt || mimeExt;
+
+  const basename = path.basename(pathname, `.${ext}`);
 
   let result = `${url.hostname}`;
 
@@ -61,8 +63,8 @@ export function getFsPath(fsPath, mime) {
   }
 
   const filename = `${basename}${
-    params ? `?${decodeURIComponent(params)}.${ext}` : ""
-  }${!params && mimeExt !== fsExt ? `.${ext}` : ""}`;
+    params ? `?${decodeURIComponent(params)}` : ""
+  }.${ext}`;
 
   result = `${result}${dirname ? `${dirname}/` : ""}${fixFilename(filename)}`;
 
