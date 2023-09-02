@@ -6,12 +6,8 @@ Some helper-functions to scrape websites
 mkdir packages
 git submodule add git@github.com:signalwerk/scrape-helpers.git "./packages/scrape-helpers"
 cp packages/scrape-helpers/example.js get.js
+cp packages/scrape-helpers/package.json .
 mkdir DATA
-npm init -y
-npm i axios cheerio cli-progress
+npm i
 echo "/node_modules" >> .gitignore
-
-jq '.type = "module"' package.json | sponge package.json
-jq '.scripts.dl = "node get.js --dl"' package.json | sponge package.json
-jq '.scripts.clear = "node get.js --clear"' package.json | sponge package.json
 ```
