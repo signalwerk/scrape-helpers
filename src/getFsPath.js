@@ -8,11 +8,13 @@ function getExtension(filename) {
 const mime2ext = {
   "text/html": "html",
   "text/css": "css",
+  "text/javascript": "js",
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/gif": "gif",
   "image/webp": "webp",
   "image/svg+xml": "svg",
+  "image/x-icon": "ico",
   "application/javascript": "js",
   "application/pdf": "pdf",
   "application/opensearchdescription+xml": "xml",
@@ -20,14 +22,46 @@ const mime2ext = {
   "application/xml": "xml",
 };
 
+// Configuration for equivalent extensions
+const equivalentExtensions = [
+  ["jpg", "jpeg"],
+  ["htm", "html"],
+
+  // Add more equivalent pairs here
+  // ["ext1", "ext2"],
+];
+
+// Utility function to normalize extension based on the configuration
+function normalizeExtension(extension) {
+  // Convert to lowercase first
+  const lowerCaseExt = extension.toLowerCase();
+
+  // Check if this extension has an equivalent
+  for (const pair of equivalentExtensions) {
+    if (pair.includes(lowerCaseExt)) {
+      return pair[0]; // Always return the first item as the 'normalized' version
+    }
+  }
+
+  return lowerCaseExt; // If no equivalent found, return as is
+}
+
+function sameExtension(fsExt, mimeExt) {
+  // Normalize extensions
+  const normalizedFsExt = normalizeExtension(fsExt);
+  const normalizedMimeExt = normalizeExtension(mimeExt);
+
+  return normalizedFsExt === normalizedMimeExt;
+}
+
 export function getMimeType(str) {
   return (str || "").toLocaleLowerCase().split(";")[0];
 }
 
 function fixFilename(name) {
-  const filename = name; //.replace(/%7C/g, "|");
+  const filename = name; // .replaceAll("%7C", "|");
   const ext = path.extname(filename);
-  const basename = path.basename(filename, ext);
+  const basename = decodeURI(path.basename(filename, ext));
 
   const result = `${basename.slice(0, 240 - ext.length)}${ext}`;
 
@@ -52,9 +86,10 @@ export function getFsPath(fsPath, mime) {
   // const basename = path.basename(pathname, path.extname(pathname));
 
   const fsExt = getExtension(pathname);
-  const ext = fsExt || mimeExt;
+  const ext = mimeExt || fsExt;
 
-  const basename = path.basename(pathname, `.${ext}`);
+  const basename = path.basename(pathname);
+  const hasExt = basename.endsWith(`.${fsExt}`);
 
   let result = `${url.hostname}`;
 
@@ -62,11 +97,19 @@ export function getFsPath(fsPath, mime) {
     return `${result}${pathname}index.html`;
   }
 
-  const filename = `${basename}${
-    params ? `?${decodeURIComponent(params)}` : ""
-  }.${ext}`;
+  let filename = null;
 
-  result = `${result}${dirname ? `${dirname}/` : ""}${fixFilename(filename)}`;
+  if ((hasExt && sameExtension(fsExt, mimeExt)) || params) {
+    filename = basename;
+  } else {
+    filename = `${basename}.${ext}`;
+  }
+
+  if (params) {
+    filename += `?${decodeURIComponent(params)}.${ext}`;
+  }
+
+  result = `${result}${dirname ? `${dirname}` : ""}${fixFilename(filename)}`;
 
   return result;
 }

@@ -1,3 +1,4 @@
+import cheerio from "cheerio";
 import fs from "fs";
 import path from "path";
 import util from "util";
@@ -19,8 +20,63 @@ export async function queue({
   disallowDomains,
   downloadedFile,
   logFile,
+  searchParameters,
+  rejectRegex,
+  includeRegex,
+  postProcess,
+  process,
 }) {
   console.log("Starting queue");
+
+  eventEmitter.on("finish", async () => {
+    console.log("Finished queue");
+    const bar1 = new cliProgress.SingleBar(
+      {
+        clearOnComplete: false,
+        hideCursor: true,
+        format:
+          "  post process    {bar}  {percentage}% || {value}/{total} Files",
+      },
+      cliProgress.Presets.shades_classic
+    );
+
+    bar1.start(Object.keys(downloadedUrls).length, 0);
+
+    for (const [key, value] of Object.entries(downloadedUrls)) {
+      bar1.increment();
+
+      const item = downloadedUrls[key];
+      if (item.status !== "error" && item.mimeType === "text/html") {
+        const content = await readFile(item.path, "utf-8");
+        const $ = cheerio.load(content);
+
+        const hasEdits = postProcess["text/html"]($, {
+          downloadedFile: item,
+          downloadedFiles: downloadedUrls,
+        });
+        if (hasEdits) {
+          writeFile(item.path, $.html());
+          writeFile(`${item.path}.orig`, content);
+        }
+      }
+      if (item.status !== "error" && item.mimeType === "text/css") {
+        const content = await readFile(item.path, "utf-8");
+
+        const { hasEdits, css } = await postProcess["text/css"](content, {
+          downloadedFile: item,
+          downloadedFiles: downloadedUrls,
+        });
+
+        if (hasEdits) {
+          console.log("CSS has edit");
+          writeFile(item.path, css);
+          writeFile(`${item.path}.orig`, content);
+        }
+      }
+    }
+
+    bar1.stop();
+  });
 
   eventEmitter.on("newDownload", async () => {
     await download({
@@ -37,6 +93,9 @@ export async function queue({
       downloadedUrls,
       allowDomains,
       disallowDomains,
+      searchParameters: searchParameters || "remove",
+      rejectRegex,
+      includeRegex,
     });
   });
 
@@ -51,6 +110,9 @@ export async function queue({
       processedUrls,
       allowDomains,
       disallowDomains,
+      rejectRegex,
+      includeRegex,
+      process,
     });
   });
 
@@ -73,6 +135,7 @@ export async function queue({
         value.status !== "error" &&
         value.mimeType === "text/html"
       ) {
+        console.log("processQueue", value.path);
         processQueue.push({
           url: value.url,
           path: value.path,
@@ -121,4 +184,7 @@ export async function queue({
   }
 
   multi.stop();
+
+  console.log("start finish event");
+  eventEmitter.emit("finish");
 }

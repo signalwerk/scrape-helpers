@@ -86,3 +86,19 @@ test("normalizeURL: enforces HTTPS if option is set to true", () => {
   const normalizedUrl = normalizeURL(originalUrl, pageUrl, options);
   expect(normalizedUrl).toBe("https://www.example.com/");
 });
+
+test("normalizeURL: enforces HTTPS if option is set to true", () => {
+  const originalUrl =
+    "https://ddos.odenwilusenz.ch/load.php?lang=de&modules=filepage%7Cmediawiki.action.view.filepage%7Cmediawiki.interface.helpers.styles%7Cskins.vector.styles.legacy&only=styles&skin=vector";
+  const pageUrl = "https://www.example.com/";
+
+  const options = {
+    enforceHttps: true,
+    removeTrailingSlash: true,
+    removeHash: true,
+    searchParameters: "keep",
+  };
+
+  const normalizedUrl = normalizeURL(originalUrl, pageUrl, options);
+  expect(normalizedUrl).toBe("https://www.example.com/");
+});

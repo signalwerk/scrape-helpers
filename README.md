@@ -11,3 +11,7 @@ mkdir DATA
 npm i
 echo "/node_modules" >> .gitignore
 ```
+
+## Todo
+
+- Detect if files are already downloaded and skip them (images with and without params)

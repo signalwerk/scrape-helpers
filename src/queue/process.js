@@ -1,11 +1,62 @@
 import cheerio from "cheerio";
 import fs from "fs";
 import util from "util";
-import { absoluteUrl } from "../normalizeURL.js";
+import postcss from "postcss";
+import { absoluteUrl, getNormalizedURL } from "../normalizeURL.js";
+import { isDomainAllowed, isRecected } from "./download.js";
 import "../cleanups/getRelativeURL.js";
 
 const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
+
+function findResources() {
+  return new Promise((resolve) => {
+    const resources = {
+      imports: [],
+      backgroundImages: [],
+      fonts: [],
+    };
+
+    const plugin = postcss.plugin("postcss-find-resources", () => {
+      return (root) => {
+        root.walkAtRules("import", (rule) => {
+          resources.imports.push(rule.params.replace(/['";]/g, ""));
+        });
+
+        root.walkDecls((decl) => {
+          const urlRegex = /url\(['"]?([^'"]+)['"]?\)/g;
+          let match;
+
+          // Common properties that may contain URLs
+          const propsWithUrls = [
+            "background",
+            "background-image",
+            "cursor",
+            "list-style",
+            "list-style-image",
+            "mask",
+            "mask-image",
+          ];
+
+          if (propsWithUrls.includes(decl.prop)) {
+            while ((match = urlRegex.exec(decl.value)) !== null) {
+              resources.backgroundImages.push(match[1]);
+            }
+          }
+
+          // Handle font-face
+          if (decl.prop === "src" && decl.parent.name === "font-face") {
+            while ((match = urlRegex.exec(decl.value)) !== null) {
+              resources.fonts.push(match[1]);
+            }
+          }
+        });
+      };
+    });
+
+    resolve({ plugin, resources });
+  });
+}
 
 export async function processFile({
   typesToDownload,
@@ -15,77 +66,88 @@ export async function processFile({
   downloadQueue,
   downloadProgress,
   processedUrls,
+  process,
 }) {
   while (processQueue.length > 0) {
     appendToLog(`START processFile:`);
-    const { url, path } = processQueue.shift();
+    const { url, path, mimeType } = processQueue.shift();
 
     appendToLog(`START processFile: ${url}`);
-    appendToLog(`                   ${path}`);
+    appendToLog(`                   ${mimeType} ${path}`);
 
     let hasEdits = false;
     const content = await readFile(path, "utf-8");
-    const $ = cheerio.load(content);
 
-    function processElements(selector, attribute) {
-      $(selector).each((index, element) => {
-        let originalUrl = $(element).attr(attribute);
-        if (originalUrl) {
-          const fullUrl = absoluteUrl(originalUrl, url);
+    if (mimeType === "text/html") {
+      const $ = cheerio.load(content);
 
-          if (!downloadQueue.includes(fullUrl) && !processedUrls[fullUrl]) {
-            appendToLog(`Append Downloading: ${fullUrl} (from ${url})`);
+      function processElements(selector, attribute) {
+        $(selector).each((index, element) => {
+          let originalUrl = $(element).attr(attribute);
+          if (originalUrl) {
+            const fullUrl = absoluteUrl(originalUrl, url);
+
+            if (!downloadQueue.includes(fullUrl) && !processedUrls[fullUrl]) {
+              appendToLog(
+                `  Append Downloading (${selector}): ${fullUrl} (from ${url})`
+              );
+              downloadQueue.push(fullUrl);
+              downloadProgress.setTotal(downloadProgress.total + 1);
+            }
+          }
+        });
+      }
+
+      // // Process anchor links
+      processElements("a", "href");
+
+      // Process images if needed
+      if (typesToDownload.includes("image")) {
+        processElements("img", "src");
+      }
+
+      // Process scripts if needed
+      if (typesToDownload.includes("script")) {
+        processElements("script", "src");
+      }
+
+      if (typesToDownload.includes("stylesheet")) {
+        processElements("link[rel=stylesheet]", "href");
+      }
+
+      if (typesToDownload.includes("icon")) {
+        processElements("link[rel=icon]", "href");
+      }
+
+      await process["text/html"]({ url, path, content }, (urls) => {
+        downloadQueue.push(...urls);
+        downloadProgress.setTotal(downloadProgress.total + urls.length);
+      });
+    }
+    if (mimeType === "text/css") {
+      const { plugin, resources } = await findResources();
+
+      // Use PostCSS to parse and handle the CSS
+      postcss([plugin])
+        .process(content)
+        .then(() => {
+          resources.backgroundImages.forEach((originalUrl) => {
+            // const fullUrl = absoluteUrl(originalUrl, url);
+
+            const fullUrl = getNormalizedURL(originalUrl, url, {
+              removeHash: true,
+              searchParameters: "remove",
+            }).href;
+
+            appendToLog(`  Append Downloading (CSS): ${fullUrl} (from ${url})`);
+
             downloadQueue.push(fullUrl);
             downloadProgress.setTotal(downloadProgress.total + 1);
-          }
-        }
-      });
-    }
-
-    function createRelative(selector, attribute) {
-      const links = $(selector);
-      links.each((i, el) => {
-        const href = $(el).attr(attribute);
-
-        if (href && (href.startsWith("/") || href.startsWith("."))) {
-          const destination = absoluteUrl(href, url);
-
-          const path = new URL(destination);
-          const newPath = path.getRelativeURL(url, false, false);
-
-          if (href !== newPath) {
-            hasEdits = true;
-            $(el).attr(attribute, newPath);
-          }
-        }
-      });
-    }
-
-    // Process anchor links
-    processElements("a", "href");
-
-    // Process images if needed
-    if (typesToDownload.includes("image")) {
-      processElements("img", "src");
-    }
-
-    // Process scripts if needed
-    if (typesToDownload.includes("script")) {
-      processElements("script", "src");
-    }
-
-    if (typesToDownload.includes("stylesheet")) {
-      processElements("link[rel=stylesheet]", "href");
-    }
-
-    createRelative("a", "href");
-    createRelative("img", "src");
-    createRelative("script", "src");
-    createRelative("link[rel=stylesheet]", "href");
-
-    if (hasEdits) {
-      writeFile(path, $.html());
-      writeFile(`${path}.orig`, content);
+          });
+        })
+        .catch((err) => {
+          console.error("Error processing the CSS:", err);
+        });
     }
 
     processProgress.increment();

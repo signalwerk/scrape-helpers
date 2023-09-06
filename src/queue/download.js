@@ -8,7 +8,7 @@ import { ensureDirectoryExistence } from "../ensureDirectoryExistence.js";
 
 const writeFile = util.promisify(fs.writeFile);
 
-function isDomainAllowed(domain, allowDomains, disallowDomains) {
+export function isDomainAllowed(domain, allowDomains, disallowDomains) {
   if (disallowDomains.includes(domain)) {
     return false;
   }
@@ -21,6 +21,21 @@ function isDomainAllowed(domain, allowDomains, disallowDomains) {
     return true;
   }
 
+  return false;
+}
+
+export function isRecected(url, rejectRegex, includeRegex) {
+  if (includeRegex) {
+    const regex = new RegExp(includeRegex, "g");
+    if (regex.test(url)) {
+      return false;
+    }
+  }
+
+  if (rejectRegex) {
+    const regex = new RegExp(rejectRegex, "g");
+    return regex.test(url);
+  }
   return false;
 }
 
@@ -59,6 +74,9 @@ export async function download({
   downloadedFile,
   allowDomains,
   disallowDomains,
+  searchParameters,
+  rejectRegex,
+  includeRegex,
 }) {
   while (downloadQueue.length > 0) {
     const url = downloadQueue.shift();
@@ -67,15 +85,16 @@ export async function download({
       enforceHttps: true,
       removeTrailingSlash: true,
       removeHash: true,
-      searchParameters: "remove",
+      searchParameters: searchParameters,
     });
 
     const normalizedUrlHref = normalizedUrl.href;
 
     if (
-      isDomainAllowed(normalizedUrl.hostname, allowDomains, disallowDomains) //&&
-      //   !isMediaURL(normalizedUrlHref)
+      isDomainAllowed(normalizedUrl.hostname, allowDomains, disallowDomains) &&
+      !isRecected(normalizedUrlHref, rejectRegex, includeRegex)
     ) {
+      // console.log("isRecected", url);
       if (!downloadedUrls[normalizedUrlHref]) {
         const fileStatus = {
           url: normalizedUrlHref,
@@ -105,7 +124,7 @@ export async function download({
               enforceHttps: true,
               removeTrailingSlash: true,
               removeHash: true,
-              searchParameters: "remove",
+              searchParameters: searchParameters,
             }
           );
 
@@ -141,7 +160,11 @@ export async function download({
             fileStatus.mimeType = mimeType;
 
             if (mimeType === "text/html") {
-              processQueue.push({ url: normalizedUrlHref, path: filePath });
+              processQueue.push({ url: normalizedUrlHref, path: filePath, mimeType });
+              processProgress.setTotal(processProgress.total + 1);
+            }
+            if (mimeType === "text/css") {
+              processQueue.push({ url: normalizedUrlHref, path: filePath, mimeType });
               processProgress.setTotal(processProgress.total + 1);
             }
 

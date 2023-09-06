@@ -44,6 +44,7 @@ async function runQueue() {
     downloadDir: HTML_DIR,
     allowDomains: [DOMAIN, "unpkg.com"],
     disallowDomains: [],
+    searchParameters: "sort", // "remove" is default
   }); // wait for response
   // console.log(`Queue written to ${response}`); // log success message
 }
