@@ -15,3 +15,4 @@ echo "/node_modules" >> .gitignore
 ## Todo
 
 - Detect if files are already downloaded and skip them (images with and without params)
+- get [wiki-texts](https://ddos.odenwilusenz.ch/api.php?action=query&format=json&prop=revisions&titles=Hauptseite&formatversion=2&rvprop=content&rvslots=*)

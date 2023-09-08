@@ -48,19 +48,6 @@ function isSubdomain(subdomain, domains) {
   }
   return false;
 }
-function isMediaURL(url) {
-  // Specify the media-type endings
-  const mediaTypes = [".pdf", ".jpg", ".jpeg", ".png", ".gif", ".docx", ".doc"];
-
-  // Check if the getNormalizedURL ends with any media-type ending
-  for (const mediaType of mediaTypes) {
-    if (url.toLowerCase().endsWith(mediaType)) {
-      return true;
-    }
-  }
-
-  return false;
-}
 
 export async function download({
   typesToDownload,
@@ -160,11 +147,19 @@ export async function download({
             fileStatus.mimeType = mimeType;
 
             if (mimeType === "text/html") {
-              processQueue.push({ url: normalizedUrlHref, path: filePath, mimeType });
+              processQueue.push({
+                url: normalizedUrlHref,
+                path: filePath,
+                mimeType,
+              });
               processProgress.setTotal(processProgress.total + 1);
             }
             if (mimeType === "text/css") {
-              processQueue.push({ url: normalizedUrlHref, path: filePath, mimeType });
+              processQueue.push({
+                url: normalizedUrlHref,
+                path: filePath,
+                mimeType,
+              });
               processProgress.setTotal(processProgress.total + 1);
             }
 

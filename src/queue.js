@@ -1,14 +1,11 @@
-import cheerio from "cheerio";
 import fs from "fs";
 import path from "path";
 import util from "util";
-import prettier from "prettier";
 import cliProgress from "cli-progress";
 import { EventEmitter } from "events";
 import { processFile } from "./queue/process.js";
 import { download } from "./queue/download.js";
 
-const writeFile = util.promisify(fs.writeFile);
 const readFile = util.promisify(fs.readFile);
 
 const eventEmitter = new EventEmitter();
@@ -47,38 +44,29 @@ export async function queue({
       bar1.increment();
 
       const item = downloadedUrls[key];
-      if (item.status !== "error" && item.mimeType === "text/html") {
-        const content = await readFile(item.path, "utf-8");
-        const $ = cheerio.load(content);
+      if (
+        postProcess["text/html"] &&
+        item.status !== "error" &&
+        item.mimeType === "text/html"
+      ) {
+        fs.copyFileSync(item.path, `${item.path}.orig`);
 
-        const hasEdits = postProcess["text/html"]($, {
+        postProcess["text/html"]({
           downloadedFile: item,
           downloadedFiles: downloadedUrls,
         });
-        if (hasEdits) {
-          const formattedHtml = await prettier.format($.html(), {
-            parser: "html",
-          });
-          writeFile(item.path, formattedHtml);
-          writeFile(`${item.path}.orig`, content);
-        }
       }
-      if (item.status !== "error" && item.mimeType === "text/css") {
-        const content = await readFile(item.path, "utf-8");
+      if (
+        postProcess["text/css"] &&
+        item.status !== "error" &&
+        item.mimeType === "text/css"
+      ) {
+        fs.copyFileSync(item.path, `${item.path}.orig`);
 
-        const { hasEdits, css } = await postProcess["text/css"](content, {
+        await postProcess["text/css"]({
           downloadedFile: item,
           downloadedFiles: downloadedUrls,
         });
-
-        if (hasEdits) {
-          console.log("CSS has edit");
-          const formattedCss = await prettier.format(css, {
-            parser: "css",
-          });
-          writeFile(item.path, formattedCss);
-          writeFile(`${item.path}.orig`, content);
-        }
       }
     }
 
