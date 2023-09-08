@@ -15,7 +15,11 @@ export function getNewUrl({
   const destinationItem = downloadedFiles[fullUrl.href];
 
   if (destinationItem) {
-    const newUrl = getFsPath(destinationItem.url, destinationItem.mimeType);
+    const endItem = destinationItem.redirect
+      ? downloadedFiles[destinationItem.redirect.url]
+      : destinationItem;
+
+    const newUrl = getFsPath(endItem.url, endItem.mimeType);
     const finalUrl = `${fullUrl.protocol}/${newUrl}`; // should be destinationItem's protocol
 
     const path = new URL(finalUrl);
