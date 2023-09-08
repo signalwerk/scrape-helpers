@@ -71,11 +71,6 @@ function fixFilename(name) {
 // https://stackoverflow.com/questions/70643383/which-mime-types-contain-charset-utf-8-directive
 export function getFsPath(fsPath, mime) {
   const mimeExt = mime2ext[mime];
-  // if (!mimeExt) {
-  //   console.error("no ext for mime", mime);
-  //   console.log("getFsPath", fsPath, mime);
-  //   throw new Error(`No extension for mime type ${mime}`);
-  // }
 
   const url = new URL(fsPath);
   const pathname = url.pathname;
@@ -109,7 +104,11 @@ export function getFsPath(fsPath, mime) {
     filename += `?${decodeURIComponent(params)}.${ext}`;
   }
 
-  result = `${result}${dirname ? `${dirname}` : ""}${fixFilename(filename)}`;
+  if (dirname && dirname !== "/") {
+    result += `${dirname}`;
+  }
+
+  result += `/${fixFilename(filename)}`;
 
   return result;
 }

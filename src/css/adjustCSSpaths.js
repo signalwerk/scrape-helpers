@@ -6,18 +6,25 @@ export async function adjustCSSpaths({
   downloadedFile,
   downloadedFiles,
   content,
+  appendToLog,
 }) {
   const { plugin } = await replaceResources((foundUrl) =>
-    getNewUrl(foundUrl, downloadedFile.url, downloadedFiles, {
-      removeHash: true,
-      searchParameters: "remove",
+    getNewUrl({
+      url: foundUrl,
+      refferer: downloadedFile.url,
+      downloadedFiles,
+
+      normalizeOptions: {
+        removeHash: true,
+        searchParameters: "remove",
+      },
+      appendToLog,
     })
   );
   const formattedCss = await postcss([plugin])
     .process(content)
     .then((result) => {
       // The transformed CSS, where URLs have been replaced.
-      console.log("CSS Transformed");
       return prettier.format(result.css, {
         parser: "css",
       });
@@ -28,7 +35,7 @@ export async function adjustCSSpaths({
     });
   return formattedCss;
 }
-function replaceResources(getNewUrl) {
+function replaceResources(cb) {
   return new Promise((resolve) => {
     const plugin = postcss.plugin("postcss-replace-resources", () => {
       return (root) => {
@@ -36,7 +43,7 @@ function replaceResources(getNewUrl) {
           const match = rule.params.match(/url\(['"]?([^'"]+)['"]?\)/);
           if (match) {
             const oldUrl = match[1];
-            const newUrl = getNewUrl(oldUrl);
+            const newUrl = cb(oldUrl);
             rule.params = `url(${newUrl})`;
           }
         });
@@ -46,7 +53,7 @@ function replaceResources(getNewUrl) {
           let match;
 
           decl.value = decl.value.replace(urlRegex, (fullMatch, oldUrl) => {
-            const newUrl = getNewUrl(oldUrl);
+            const newUrl = cb(oldUrl);
             return `url(${newUrl})`;
           });
         });

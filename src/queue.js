@@ -24,10 +24,7 @@ export async function queue({
   postProcess,
   process,
 }) {
-  console.log("Starting queue");
-
   eventEmitter.on("finish", async () => {
-    console.log("Finished queue");
     const bar1 = new cliProgress.SingleBar(
       {
         clearOnComplete: false,
@@ -40,10 +37,16 @@ export async function queue({
 
     bar1.start(Object.keys(downloadedUrls).length, 0);
 
+    // Wait for 2 seconds
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
     for (const [key, value] of Object.entries(downloadedUrls)) {
       bar1.increment();
 
       const item = downloadedUrls[key];
+
+      appendToLog(`START postprocess: ${key}`);
+
       if (
         postProcess["text/html"] &&
         item.status !== "error" &&
@@ -51,11 +54,15 @@ export async function queue({
       ) {
         fs.copyFileSync(item.path, `${item.path}.orig`);
 
+        appendToLog(`START postprocess text/html`);
+
         postProcess["text/html"]({
+          appendToLog,
           downloadedFile: item,
           downloadedFiles: downloadedUrls,
         });
       }
+
       if (
         postProcess["text/css"] &&
         item.status !== "error" &&
@@ -63,7 +70,10 @@ export async function queue({
       ) {
         fs.copyFileSync(item.path, `${item.path}.orig`);
 
+        appendToLog(`START postprocess text/css`);
+
         await postProcess["text/css"]({
+          appendToLog,
           downloadedFile: item,
           downloadedFiles: downloadedUrls,
         });
@@ -130,7 +140,6 @@ export async function queue({
         value.status !== "error" &&
         value.mimeType === "text/html"
       ) {
-        console.log("processQueue", value.path);
         processQueue.push({
           url: value.url,
           path: value.path,
@@ -180,6 +189,5 @@ export async function queue({
 
   multi.stop();
 
-  console.log("start finish event");
   eventEmitter.emit("finish");
 }

@@ -81,21 +81,36 @@ export async function processFile({
     if (mimeType === "text/html") {
       const $ = cheerio.load(content);
 
+      // Modified processElements function
       function processElements(selector, attribute) {
         $(selector).each((index, element) => {
-          let originalUrl = $(element).attr(attribute);
-          if (originalUrl) {
-            const fullUrl = absoluteUrl(originalUrl, url);
+          let originalValue = $(element).attr(attribute);
 
-            if (!downloadQueue.includes(fullUrl) && !processedUrls[fullUrl]) {
-              appendToLog(
-                `  Append Downloading (${selector}): ${fullUrl} (from ${url})`
-              );
-              downloadQueue.push(fullUrl);
-              downloadProgress.setTotal(downloadProgress.total + 1);
+          if (originalValue) {
+            if (attribute === "srcset") {
+              // Split by comma to get individual URLs in srcset
+              const srcsetUrls = originalValue.split(",");
+              srcsetUrls.forEach((srcsetUrl) => {
+                // Trim and split by space to separate URL and pixel density descriptor
+                const [srcsetUrlTrimmed] = srcsetUrl.trim().split(" ");
+                const fullUrl = absoluteUrl(srcsetUrlTrimmed, url);
+                addUrlToQueue(fullUrl);
+              });
+            } else {
+              const fullUrl = absoluteUrl(originalValue, url);
+              addUrlToQueue(fullUrl);
             }
           }
         });
+      }
+
+      // Function to add URL to download queue
+      function addUrlToQueue(fullUrl) {
+        if (!downloadQueue.includes(fullUrl) && !processedUrls[fullUrl]) {
+          appendToLog(`  Append Downloading: ${fullUrl} (from ${url})`);
+          downloadQueue.push(fullUrl);
+          downloadProgress.setTotal(downloadProgress.total + 1);
+        }
       }
 
       // // Process anchor links
@@ -104,6 +119,7 @@ export async function processFile({
       // Process images if needed
       if (typesToDownload.includes("image")) {
         processElements("img", "src");
+        processElements("img", "srcset"); // Handling srcset for img
       }
 
       // Process scripts if needed

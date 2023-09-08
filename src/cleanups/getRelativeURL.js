@@ -30,7 +30,6 @@
     try {
       base = new URL(base);
     } catch (e) {
-      console.log("----- getRelativeURL", base);
       base = new URL(document.URL);
     }
 

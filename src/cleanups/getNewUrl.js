@@ -3,13 +3,14 @@ import { getFsPath } from "../getFsPath.js";
 
 // A function to replace the old URL with a new one. Implement your own logic here.
 
-export function getNewUrl(
-  oldUrl,
-  currentUrl,
+export function getNewUrl({
+  url,
+  refferer,
   downloadedFiles,
-  normalizeOptions
-) {
-  const fullUrl = getNormalizedURL(oldUrl, currentUrl, normalizeOptions);
+  normalizeOptions,
+  appendToLog,
+}) {
+  const fullUrl = getNormalizedURL(url, refferer, normalizeOptions);
 
   const destinationItem = downloadedFiles[fullUrl.href];
 
@@ -19,12 +20,34 @@ export function getNewUrl(
 
     const path = new URL(finalUrl);
     const newPath = path
-      .getRelativeURL(currentUrl, false, false)
+      .getRelativeURL(refferer, false, false)
       .replace("?", "%3F")
       .replace(":", "%3A");
+
+    appendToLog(
+      `START getNewUrl:
+                                  url ${url}
+                                  refferer ${refferer}
+                                  newPath ${newPath}
+                                  newUrl ${newUrl}
+                                  `
+    );
 
     return newPath;
   }
 
-  return oldUrl;
+  appendToLog(
+    `START getNewUrl missing:
+                                url ${url}
+                                refferer ${refferer}
+                                fullUrl ${fullUrl.href}
+                                destinationItem ${
+                                  destinationItem
+                                    ? destinationItem.url
+                                    : "undefined"
+                                }
+                                `
+  );
+
+  return url;
 }

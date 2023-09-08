@@ -77,11 +77,18 @@ export async function download({
 
     const normalizedUrlHref = normalizedUrl.href;
 
-    if (
-      isDomainAllowed(normalizedUrl.hostname, allowDomains, disallowDomains) &&
-      !isRecected(normalizedUrlHref, rejectRegex, includeRegex)
-    ) {
-      // console.log("isRecected", url);
+    const isUrlAllowed = !isRecected(
+      normalizedUrlHref,
+      rejectRegex,
+      includeRegex
+    );
+    const domainIsAllowed = isDomainAllowed(
+      normalizedUrl.hostname,
+      allowDomains,
+      disallowDomains
+    );
+
+    if (domainIsAllowed && isUrlAllowed) {
       if (!downloadedUrls[normalizedUrlHref]) {
         const fileStatus = {
           url: normalizedUrlHref,
@@ -181,6 +188,12 @@ export async function download({
           JSON.stringify(downloadedUrls, null, 2)
         );
       }
+    } else {
+      appendToLog(
+        `REJECT Downloading: ${normalizedUrlHref} (${
+          isUrlAllowed ? "url allowed" : "url not allowed"
+        }, ${domainIsAllowed ? "domain allowed" : "domain not allowed"})`
+      );
     }
 
     downloadProgress.increment();
