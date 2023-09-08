@@ -135,10 +135,12 @@ export async function processFile({
         processElements("link[rel=icon]", "href");
       }
 
-      await process["text/html"]({ url, path, content }, (urls) => {
-        downloadQueue.push(...urls);
-        downloadProgress.setTotal(downloadProgress.total + urls.length);
-      });
+      if (process && process["text/html"]) {
+        await process["text/html"]({ url, path, content }, (urls) => {
+          downloadQueue.push(...urls);
+          downloadProgress.setTotal(downloadProgress.total + urls.length);
+        });
+      }
     }
     if (mimeType === "text/css") {
       const { plugin, resources } = await findResources();
