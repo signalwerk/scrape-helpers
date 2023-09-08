@@ -28,8 +28,8 @@ export function getNewUrl({
       `START getNewUrl:
                                   url ${url}
                                   refferer ${refferer}
-                                  newPath ${newPath}
                                   newUrl ${newUrl}
+                                  newPath ${newPath}
                                   `
     );
 

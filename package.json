@@ -6,6 +6,7 @@
   "scripts": {
     "dl": "node get.js --dl",
     "clear": "node get.js --clear",
+    "sitemap": "node get.js --sitemap",
     "watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },

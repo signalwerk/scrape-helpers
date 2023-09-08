@@ -33,6 +33,10 @@ const equivalentExtensions = [
 
 // Utility function to normalize extension based on the configuration
 function normalizeExtension(extension) {
+  if (!extension) {
+    return extension;
+  }
+
   // Convert to lowercase first
   const lowerCaseExt = extension.toLowerCase();
 
