@@ -2,6 +2,7 @@ import cheerio from "cheerio";
 import fs from "fs";
 import path from "path";
 import util from "util";
+import prettier from "prettier";
 import cliProgress from "cli-progress";
 import { EventEmitter } from "events";
 import { processFile } from "./queue/process.js";
@@ -55,7 +56,10 @@ export async function queue({
           downloadedFiles: downloadedUrls,
         });
         if (hasEdits) {
-          writeFile(item.path, $.html());
+          const formattedHtml = await prettier.format($.html(), {
+            parser: "html",
+          });
+          writeFile(item.path, formattedHtml);
           writeFile(`${item.path}.orig`, content);
         }
       }
@@ -69,7 +73,10 @@ export async function queue({
 
         if (hasEdits) {
           console.log("CSS has edit");
-          writeFile(item.path, css);
+          const formattedCss = await prettier.format(css, {
+            parser: "css",
+          });
+          writeFile(item.path, formattedCss);
           writeFile(`${item.path}.orig`, content);
         }
       }
