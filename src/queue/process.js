@@ -136,7 +136,7 @@ export async function processFile({
       }
 
       if (process && process["text/html"]) {
-        await process["text/html"]({ url, path, content }, (urls) => {
+        await process["text/html"]({ url, path }, (urls) => {
           downloadQueue.push(...urls);
           downloadProgress.setTotal(downloadProgress.total + urls.length);
         });
