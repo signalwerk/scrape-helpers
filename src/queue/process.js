@@ -9,6 +9,8 @@ import "../cleanups/getRelativeURL.js";
 const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
 
+const urlRegex = /url\(['"]?([^'"]+)['"]?\)/g;
+
 function findResources() {
   return new Promise((resolve) => {
     const resources = {
@@ -17,42 +19,49 @@ function findResources() {
       fonts: [],
     };
 
-    const plugin = postcss.plugin("postcss-find-resources", () => {
-      return (root) => {
-        root.walkAtRules("import", (rule) => {
-          resources.imports.push(rule.params.replace(/['";]/g, ""));
-        });
+    const plugin = () => {
+      return {
+        postcssPlugin: "postcss-find-resources",
 
-        root.walkDecls((decl) => {
-          const urlRegex = /url\(['"]?([^'"]+)['"]?\)/g;
-          let match;
+        Once(root) {
+          root.walkAtRules("import", (rule) => {
+            resources.imports.push(rule.params.replace(/['";]/g, ""));
+          });
 
-          // Common properties that may contain URLs
-          const propsWithUrls = [
-            "background",
-            "background-image",
-            "cursor",
-            "list-style",
-            "list-style-image",
-            "mask",
-            "mask-image",
-          ];
+          root.walkAtRules("font-face", (rule) => {
+            rule.walkDecls("src", (decl) => {
+              let match;
 
-          if (propsWithUrls.includes(decl.prop)) {
-            while ((match = urlRegex.exec(decl.value)) !== null) {
-              resources.backgroundImages.push(match[1]);
+              while ((match = urlRegex.exec(decl.value)) !== null) {
+                resources.fonts.push(match[1]);
+              }
+            });
+          });
+
+          root.walkDecls((decl) => {
+            let match;
+
+            // Common properties that may contain URLs
+            const propsWithUrls = [
+              "background",
+              "background-image",
+              "cursor",
+              "list-style",
+              "list-style-image",
+              "mask",
+              "mask-image",
+            ];
+
+            if (propsWithUrls.includes(decl.prop)) {
+              while ((match = urlRegex.exec(decl.value)) !== null) {
+                resources.backgroundImages.push(match[1]);
+              }
             }
-          }
-
-          // Handle font-face
-          if (decl.prop === "src" && decl.parent.name === "font-face") {
-            while ((match = urlRegex.exec(decl.value)) !== null) {
-              resources.fonts.push(match[1]);
-            }
-          }
-        });
+          });
+        },
       };
-    });
+    };
+    plugin.postcss = true;
 
     resolve({ plugin, resources });
   });
@@ -160,6 +169,19 @@ export async function processFile({
             }).href;
 
             appendToLog(`  Append Downloading (CSS): ${fullUrl} (from ${url})`);
+
+            downloadQueue.push(fullUrl);
+            downloadProgress.setTotal(downloadProgress.total + 1);
+          });
+          resources.fonts.forEach((originalUrl) => {
+            const fullUrl = getNormalizedURL(originalUrl, url, {
+              removeHash: true,
+              searchParameters: "remove",
+            }).href;
+
+            appendToLog(
+              `  Append Downloading (font): ${fullUrl} (from ${url})`
+            );
 
             downloadQueue.push(fullUrl);
             downloadProgress.setTotal(downloadProgress.total + 1);

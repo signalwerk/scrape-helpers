@@ -2,6 +2,8 @@ import prettier from "prettier";
 import postcss from "postcss";
 import { getNewUrl } from "../cleanups/getNewUrl.js";
 
+const urlRegex = /url\(['"]?([^'"]+)['"]?\)/g;
+
 export async function adjustCSSpaths({
   downloadedFile,
   downloadedFiles,
@@ -37,28 +39,32 @@ export async function adjustCSSpaths({
 }
 function replaceResources(cb) {
   return new Promise((resolve) => {
-    const plugin = postcss.plugin("postcss-replace-resources", () => {
-      return (root) => {
-        root.walkAtRules("import", (rule) => {
-          const match = rule.params.match(/url\(['"]?([^'"]+)['"]?\)/);
-          if (match) {
-            const oldUrl = match[1];
-            const newUrl = cb(oldUrl);
-            rule.params = `url(${newUrl})`;
-          }
-        });
-
-        root.walkDecls((decl) => {
-          const urlRegex = /url\(['"]?([^'"]+)['"]?\)/g;
-          let match;
-
-          decl.value = decl.value.replace(urlRegex, (fullMatch, oldUrl) => {
-            const newUrl = cb(oldUrl);
-            return `url(${newUrl})`;
+    const plugin = () => {
+      return {
+        postcssPlugin: "postcss-replace-resources",
+        Once(root) {
+          root.walkAtRules("import", (rule) => {
+            const match = rule.params.match(/url\(['"]?([^'"]+)['"]?\)/);
+            if (match) {
+              const oldUrl = match[1];
+              const newUrl = cb(oldUrl);
+              rule.params = `url(${newUrl})`;
+            }
           });
-        });
+
+          root.walkDecls((decl) => {
+            let match;
+
+            decl.value = decl.value.replace(urlRegex, (fullMatch, oldUrl) => {
+              const newUrl = cb(oldUrl);
+              return `url(${newUrl})`;
+            });
+          });
+        },
       };
-    });
+    };
+
+    plugin.postcss = true;
 
     resolve({ plugin });
   });
