@@ -35,12 +35,19 @@ async function sitemap() {
   console.log(`Sitemap written to ${SITEMAP_FILE}`); // log success message
 }
 
+const normalizeOptions = {
+  enforceHttps: true,
+  removeTrailingSlash: true,
+  removeHash: true,
+  searchParameters: "keep", // "remove",
+};
+
 async function runQueue() {
   console.log("Scraping...");
 
-  const HTML_DIR = path.join(DATA_FOLDER, "html"); // specify file path for sitemap
-  const DOWNLOAD_FILE = path.join(DATA_FOLDER, "download.json"); // specify file path for sitemap
-  const LOG_FILE = path.join(DATA_FOLDER, "dl.log"); // specify file path for sitemap
+  const HTML_DIR = path.join(DATA_FOLDER, "html");
+  const DOWNLOAD_FILE = path.join(DATA_FOLDER, "download.json");
+  const LOG_FILE = path.join(DATA_FOLDER, "dl.log");
 
   const response = await queue({
     toDownload: [`${PROTOCOL}://${DOMAIN}/`],
@@ -50,7 +57,7 @@ async function runQueue() {
     downloadDir: HTML_DIR,
     allowDomains: [DOMAIN, "unpkg.com"],
     disallowDomains: [],
-    searchParameters: "keep", // "remove",
+    normalizeOptions,
     // rejectRegex: ".*",
     // includeRegex: ".*",
     // process: {
@@ -91,7 +98,17 @@ async function runQueue() {
             appendToLog,
           });
 
-        fixFilename($, "a", "href", fix);
+        const fixButKeepHash = (url) => {
+          let hash = "";
+          if (url.includes("#")) {
+            const parts = url.split("#");
+            url = parts[0];
+            hash = "#" + parts[1];
+          }
+          return fix(url) + hash;
+        };
+
+        fixFilename($, "a", "href", fixButKeepHash);
         fixFilename($, "img", "src", fix);
         fixFilename($, "img", "srcset", fix);
         fixFilename($, "script", "src", fix);

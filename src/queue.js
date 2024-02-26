@@ -18,7 +18,7 @@ export async function queue({
   disallowDomains,
   downloadedFile,
   logFile,
-  searchParameters,
+  normalizeOptions,
   rejectRegex,
   includeRegex,
   postProcess,
@@ -113,7 +113,7 @@ export async function queue({
       downloadedUrls,
       allowDomains,
       disallowDomains,
-      searchParameters: searchParameters || "remove",
+      normalizeOptions,
       rejectRegex,
       includeRegex,
     });

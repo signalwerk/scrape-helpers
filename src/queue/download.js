@@ -61,7 +61,7 @@ export async function download({
   downloadedFile,
   allowDomains,
   disallowDomains,
-  searchParameters,
+  normalizeOptions,
   rejectRegex,
   includeRegex,
 }) {
@@ -69,10 +69,8 @@ export async function download({
     const url = downloadQueue.shift();
 
     const normalizedUrl = getNormalizedURL(url, url, {
-      enforceHttps: true,
-      removeTrailingSlash: true,
+      ...normalizeOptions,
       removeHash: true,
-      searchParameters: searchParameters,
     });
 
     const normalizedUrlHref = normalizedUrl.href;
@@ -115,14 +113,10 @@ export async function download({
             responseUrl,
             normalizedUrlHref,
             {
-              enforceHttps: true,
-              removeTrailingSlash: true,
+              ...normalizeOptions,
               removeHash: true,
-              searchParameters: searchParameters,
             }
           );
-
-          // const stdResponseUrl = standardizeURL(responseUrl);
 
           const contentType = response.headers["content-type"];
           const mimeType = getMimeType(contentType);
