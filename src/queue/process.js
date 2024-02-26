@@ -81,6 +81,8 @@ export async function processFile({
     if (mimeType === "text/html") {
       const $ = cheerio.load(content);
 
+      let baseTagHref = $("base")?.attr("href") || ".";
+
       // Modified processElements function
       function processElements(selector, attribute) {
         $(selector).each((index, element) => {
@@ -93,11 +95,11 @@ export async function processFile({
               srcsetUrls.forEach((srcsetUrl) => {
                 // Trim and split by space to separate URL and pixel density descriptor
                 const [srcsetUrlTrimmed] = srcsetUrl.trim().split(" ");
-                const fullUrl = absoluteUrl(srcsetUrlTrimmed, url);
+                const fullUrl = absoluteUrl(srcsetUrlTrimmed, url, baseTagHref);
                 addUrlToQueue(fullUrl);
               });
             } else {
-              const fullUrl = absoluteUrl(originalValue, url);
+              const fullUrl = absoluteUrl(originalValue, url, baseTagHref);
               addUrlToQueue(fullUrl);
             }
           }
@@ -136,7 +138,7 @@ export async function processFile({
       }
 
       if (process && process["text/html"]) {
-        await process["text/html"]({ url, path }, (urls) => {
+        await process["text/html"]({ url, path, appendToLog }, (urls) => {
           downloadQueue.push(...urls);
           downloadProgress.setTotal(downloadProgress.total + urls.length);
         });

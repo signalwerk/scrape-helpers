@@ -1,8 +1,10 @@
 import { URL } from "url";
 
-export function absoluteUrl(url, baseUrl) {
+export function absoluteUrl(url, baseUrl, baseTagHref = ".") {
   try {
-    let parsedUrl = new URL(url, baseUrl);
+
+    let newBase = new URL(baseTagHref, baseUrl);
+    let parsedUrl = new URL(url, newBase);
     return parsedUrl.href;
   } catch (error) {
     // console.error('Error occurred while parsing the URL:', error);

@@ -21,10 +21,10 @@ export function fixFilename($, selector, attribute, getUrl) {
         $(el).attr(attribute, newSrcset);
       } else {
         const fixedUrl = getUrl(originalValue);
-        // appendToLog(
-        //   `START postprocess text/html set ${attribute}: from ${originalValue} to ${fixedUrl} (referrer ${downloadedFile.url})`
-        // );
-        $(el).attr(attribute, fixedUrl);
+
+        if (fixedUrl !== originalValue) {
+          $(el).attr(attribute, fixedUrl);
+        }
       }
     }
   });

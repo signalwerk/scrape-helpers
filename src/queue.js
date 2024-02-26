@@ -78,6 +78,21 @@ export async function queue({
           downloadedFiles: downloadedUrls,
         });
       }
+      if (
+        postProcess["application/javascript"] &&
+        item.status !== "error" &&
+        item.mimeType === "application/javascript"
+      ) {
+        fs.copyFileSync(item.path, `${item.path}.orig`);
+
+        appendToLog(`START postprocess application/javascript`);
+
+        await postProcess["application/javascript"]({
+          appendToLog,
+          downloadedFile: item,
+          downloadedFiles: downloadedUrls,
+        });
+      }
     }
 
     bar1.stop();
