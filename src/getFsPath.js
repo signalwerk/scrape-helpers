@@ -20,6 +20,7 @@ const mime2ext = {
   "application/opensearchdescription+xml": "xml",
   "application/rsd+xml": "xml",
   "application/xml": "xml",
+  "font/woff": "woff",
 };
 
 // Configuration for equivalent extensions
