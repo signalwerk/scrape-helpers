@@ -68,6 +68,10 @@ export async function download({
   while (downloadQueue.length > 0) {
     const url = downloadQueue.shift();
 
+    if (!url) {
+      continue;
+    }
+
     const normalizedUrl = getNormalizedURL(url, url, {
       ...normalizeOptions,
       removeHash: true,

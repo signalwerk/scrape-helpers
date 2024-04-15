@@ -2,7 +2,6 @@ import { URL } from "url";
 
 export function absoluteUrl(url, baseUrl, baseTagHref = ".") {
   try {
-
     let newBase = new URL(baseTagHref, baseUrl);
     let parsedUrl = new URL(url, newBase);
     return parsedUrl.href;
@@ -20,9 +19,15 @@ export function getNormalizedURL(
     removeTrailingSlash: false,
     removeHash: false,
     searchParameters: "keep",
-  }
+  },
 ) {
-  let parsedUrl = new URL(originalUrl, pageUrl);
+  let parsedUrl = null;
+  try {
+    parsedUrl = new URL(originalUrl, pageUrl);
+  } catch (error) {
+    console.error("Error occurred while parsing the URL:", originalUrl);
+    throw error;
+  }
 
   // Remove hash if the option is set to true
   if (options.removeHash) {
