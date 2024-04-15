@@ -17,6 +17,7 @@ import { getNewUrl } from "./packages/scrape-helpers/src/cleanups/getNewUrl.js";
 
 const PROTOCOL = "https";
 const DOMAIN = "domain.com";
+const allowDomains = ["unpkg.com"];
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -48,7 +49,7 @@ async function runQueue() {
     downloadedFile: DOWNLOAD_FILE,
     logFile: LOG_FILE,
     downloadDir: HTML_DIR,
-    allowDomains: [DOMAIN, "unpkg.com"],
+    allowDomains: [DOMAIN, ...allowDomains],
     disallowDomains: [],
     searchParameters: "keep", // "remove",
     // rejectRegex: ".*",
