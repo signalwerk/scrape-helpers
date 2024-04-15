@@ -79,9 +79,17 @@ export async function processFile({
 }) {
   while (processQueue.length > 0) {
     appendToLog(`START processFile:`);
-    const { url, path, mimeType } = processQueue.shift();
+
+    const next = processQueue.shift();
+
+    const { redirect, url, path, mimeType } = next;
+
+    const urlRoot = redirect?.url || url;
 
     appendToLog(`START processFile: ${url}`);
+    if (redirect?.url) {
+      appendToLog(`                   Redirected: ${urlRoot}`);
+    }
     appendToLog(`                   ${mimeType} ${path}`);
 
     let hasEdits = false;
@@ -104,11 +112,15 @@ export async function processFile({
               srcsetUrls.forEach((srcsetUrl) => {
                 // Trim and split by space to separate URL and pixel density descriptor
                 const [srcsetUrlTrimmed] = srcsetUrl.trim().split(" ");
-                const fullUrl = absoluteUrl(srcsetUrlTrimmed, url, baseTagHref);
+                const fullUrl = absoluteUrl(
+                  srcsetUrlTrimmed,
+                  urlRoot,
+                  baseTagHref,
+                );
                 addUrlToQueue(fullUrl);
               });
             } else {
-              const fullUrl = absoluteUrl(originalValue, url, baseTagHref);
+              const fullUrl = absoluteUrl(originalValue, urlRoot, baseTagHref);
               addUrlToQueue(fullUrl);
             }
           }
@@ -118,7 +130,7 @@ export async function processFile({
       // Function to add URL to download queue
       function addUrlToQueue(fullUrl) {
         if (!downloadQueue.includes(fullUrl) && !processedUrls[fullUrl]) {
-          appendToLog(`  Append Downloading: ${fullUrl} (from ${url})`);
+          appendToLog(`  Append download (html): ${fullUrl} (from ${url})`);
           downloadQueue.push(fullUrl);
           downloadProgress.setTotal(downloadProgress.total + 1);
         }
@@ -147,10 +159,13 @@ export async function processFile({
       }
 
       if (process && process["text/html"]) {
-        await process["text/html"]({ url, path, appendToLog }, (urls) => {
-          downloadQueue.push(...urls);
-          downloadProgress.setTotal(downloadProgress.total + urls.length);
-        });
+        await process["text/html"](
+          { url: urlRoot, path, appendToLog },
+          (urls) => {
+            downloadQueue.push(...urls);
+            downloadProgress.setTotal(downloadProgress.total + urls.length);
+          },
+        );
       }
     }
     if (mimeType === "text/css") {
@@ -168,7 +183,7 @@ export async function processFile({
               searchParameters: "remove",
             }).href;
 
-            appendToLog(`  Append Downloading (CSS): ${fullUrl} (from ${url})`);
+            appendToLog(`  Append download (css): ${fullUrl} (from ${url})`);
 
             downloadQueue.push(fullUrl);
             downloadProgress.setTotal(downloadProgress.total + 1);
@@ -179,9 +194,7 @@ export async function processFile({
               searchParameters: "remove",
             }).href;
 
-            appendToLog(
-              `  Append Downloading (font): ${fullUrl} (from ${url})`
-            );
+            appendToLog(`  Append download (font): ${fullUrl} (from ${url})`);
 
             downloadQueue.push(fullUrl);
             downloadProgress.setTotal(downloadProgress.total + 1);

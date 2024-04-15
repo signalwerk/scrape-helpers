@@ -32,7 +32,7 @@ export async function queue({
         format:
           "  post process    {bar}  {percentage}% || {value}/{total} Files",
       },
-      cliProgress.Presets.shades_classic
+      cliProgress.Presets.shades_classic,
     );
 
     bar1.start(Object.keys(downloadedUrls).length, 0);
@@ -142,7 +142,7 @@ export async function queue({
   let downloadedUrls = {};
   if (fs.existsSync(downloadedFile)) {
     const lastDownloadedUrls = JSON.parse(
-      await readFile(downloadedFile, "utf-8")
+      await readFile(downloadedFile, "utf-8"),
     );
 
     for (const [key, value] of Object.entries(lastDownloadedUrls)) {
@@ -158,6 +158,8 @@ export async function queue({
         processQueue.push({
           url: value.url,
           path: value.path,
+          mimeType: value.mimeType,
+          redirect: value.redirect,
         });
       }
     }
@@ -180,7 +182,7 @@ export async function queue({
       hideCursor: true,
       format: "  {barName}    {bar}  {percentage}% || {value}/{total} Files",
     },
-    cliProgress.Presets.shades_classic
+    cliProgress.Presets.shades_classic,
   );
 
   const downloadProgress = multi.create(downloadQueue.length, 0, {

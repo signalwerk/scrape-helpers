@@ -78,12 +78,12 @@ export async function download({
     const isUrlAllowed = !isRecected(
       normalizedUrlHref,
       rejectRegex,
-      includeRegex
+      includeRegex,
     );
     const domainIsAllowed = isDomainAllowed(
       normalizedUrl.hostname,
       allowDomains,
-      disallowDomains
+      disallowDomains,
     );
 
     if (domainIsAllowed && isUrlAllowed) {
@@ -115,7 +115,7 @@ export async function download({
             {
               ...normalizeOptions,
               removeHash: true,
-            }
+            },
           );
 
           const contentType = response.headers["content-type"];
@@ -152,6 +152,10 @@ export async function download({
                 url: normalizedUrlHref,
                 path: filePath,
                 mimeType,
+                redirect: {
+                  url: responseUrl,
+                  normalized: normalizedResponseUrl,
+                },
               });
               processProgress.setTotal(processProgress.total + 1);
             }
@@ -160,6 +164,10 @@ export async function download({
                 url: normalizedUrlHref,
                 path: filePath,
                 mimeType,
+                redirect: {
+                  url: responseUrl,
+                  normalized: normalizedResponseUrl,
+                },
               });
               processProgress.setTotal(processProgress.total + 1);
             }
@@ -169,7 +177,7 @@ export async function download({
         } catch (error) {
           appendToLog(`                   ERROR ${normalizedUrlHref}`);
           appendToLog(
-            `Failed to download ${normalizedUrlHref}: ${error.message}`
+            `Failed to download ${normalizedUrlHref}: ${error.message}`,
           );
 
           fileStatus.status = "error";
@@ -179,14 +187,14 @@ export async function download({
 
         await writeFile(
           downloadedFile,
-          JSON.stringify(downloadedUrls, null, 2)
+          JSON.stringify(downloadedUrls, null, 2),
         );
       }
     } else {
       appendToLog(
         `REJECT Downloading: ${normalizedUrlHref} (${
           isUrlAllowed ? "url allowed" : "url not allowed"
-        }, ${domainIsAllowed ? "domain allowed" : "domain not allowed"})`
+        }, ${domainIsAllowed ? "domain allowed" : "domain not allowed"})`,
       );
     }
 
