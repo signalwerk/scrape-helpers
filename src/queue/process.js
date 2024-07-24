@@ -143,6 +143,7 @@ export async function processFile({
       if (typesToDownload.includes("image")) {
         processElements("img", "src");
         processElements("img", "srcset"); // Handling srcset for img
+        processElements("source", "srcset"); // Handling srcset for img
       }
 
       // Process scripts if needed

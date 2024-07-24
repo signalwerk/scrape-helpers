@@ -112,9 +112,12 @@ async function runQueue() {
         fixFilename($, "a", "href", fixButKeepHash);
         fixFilename($, "img", "src", fix);
         fixFilename($, "img", "srcset", fix);
+        fixFilename($, "source", "srcset", fix);
         fixFilename($, "script", "src", fix);
         fixFilename($, "link[rel=stylesheet]", "href", fix);
         fixFilename($, "link[rel=icon]", "href", fix);
+        fixFilename($, "link[rel=canonical]", "href", fix);
+        fixFilename($, "link[rel=alternate]", "href", fix);
 
         const formattedHtml = await prettier.format($.html(), {
           parser: "html",
