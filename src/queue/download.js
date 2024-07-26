@@ -72,10 +72,16 @@ export async function download({
       continue;
     }
 
-    const normalizedUrl = getNormalizedURL(url, url, {
-      ...normalizeOptions,
-      removeHash: true,
-    });
+    let normalizedUrl;
+    try {
+      normalizedUrl = getNormalizedURL(url, url, {
+        ...normalizeOptions,
+        removeHash: true,
+      });
+    } catch (error) {
+      appendToLog(`ERROR Normalizing URL: ${url} - ${error.message}`);
+      continue;
+    }
 
     const normalizedUrlHref = normalizedUrl.href;
 
@@ -113,14 +119,22 @@ export async function download({
 
           const responseUrl = response.request.res.responseUrl;
 
-          const normalizedResponseUrl = normalizeURL(
-            responseUrl,
-            normalizedUrlHref,
-            {
-              ...normalizeOptions,
-              removeHash: true,
-            },
-          );
+          let normalizedResponseUrl;
+          try {
+            normalizedResponseUrl = normalizeURL(
+              responseUrl,
+              normalizedUrlHref,
+              {
+                ...normalizeOptions,
+                removeHash: true,
+              },
+            );
+          } catch (error) {
+            appendToLog(
+              `ERROR Normalizing Response URL: ${responseUrl} - ${error.message}`,
+            );
+            continue;
+          }
 
           const contentType = response.headers["content-type"];
           const mimeType = getMimeType(contentType);
@@ -151,19 +165,7 @@ export async function download({
             fileStatus.path = filePath;
             fileStatus.mimeType = mimeType;
 
-            if (mimeType === "text/html") {
-              processQueue.push({
-                url: normalizedUrlHref,
-                path: filePath,
-                mimeType,
-                redirect: {
-                  url: responseUrl,
-                  normalized: normalizedResponseUrl,
-                },
-              });
-              processProgress.setTotal(processProgress.total + 1);
-            }
-            if (mimeType === "text/css") {
+            if (mimeType === "text/html" || mimeType === "text/css") {
               processQueue.push({
                 url: normalizedUrlHref,
                 path: filePath,
@@ -189,10 +191,16 @@ export async function download({
           downloadedUrls[normalizedUrlHref] = fileStatus;
         }
 
-        await writeFile(
-          downloadedFile,
-          JSON.stringify(downloadedUrls, null, 2),
-        );
+        try {
+          await writeFile(
+            downloadedFile,
+            JSON.stringify(downloadedUrls, null, 2),
+          );
+        } catch (error) {
+          appendToLog(
+            `ERROR Writing to file: ${downloadedFile} - ${error.message}`,
+          );
+        }
       }
     } else {
       appendToLog(
@@ -202,6 +210,10 @@ export async function download({
       );
     }
 
-    downloadProgress.increment();
+    try {
+      downloadProgress.increment();
+    } catch (error) {
+      appendToLog(`ERROR Incrementing download progress: ${error.message}`);
+    }
   }
 }
