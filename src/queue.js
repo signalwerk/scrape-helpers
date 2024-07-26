@@ -99,6 +99,7 @@ export async function queue({
   });
 
   eventEmitter.on("newDownload", async () => {
+    appendToLog(`ON newDownload`);
     await download({
       typesToDownload,
       appendToLog,
@@ -120,6 +121,7 @@ export async function queue({
   });
 
   eventEmitter.on("newProcessing", async () => {
+    appendToLog(`ON newProcessing`);
     processFile({
       typesToDownload,
       appendToLog,
@@ -196,9 +198,11 @@ export async function queue({
   while (downloadQueue.length > 0 || processQueue.length > 0) {
     // Emit events instead of creating tasks
     if (downloadQueue.length > 0) {
+      appendToLog(`EMIT newDownload`);
       eventEmitter.emit("newDownload");
     }
     if (processQueue.length > 0) {
+      appendToLog(`EMIT newProcessing`);
       eventEmitter.emit("newProcessing");
     }
     await new Promise((resolve) => setTimeout(resolve, 1000)); // Avoid busy waiting
