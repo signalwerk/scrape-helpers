@@ -37,9 +37,6 @@ export async function queue({
 
     bar1.start(Object.keys(downloadedUrls).length, 0);
 
-    // Wait for 2 seconds
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
     for (const [key, value] of Object.entries(downloadedUrls)) {
       bar1.increment();
 
@@ -195,7 +192,11 @@ export async function queue({
   });
 
   // Keep checking if there's work to do as long as at least one queue is not empty.
-  while (downloadQueue.length > 0 || processQueue.length > 0) {
+  while (
+    downloadQueue.length > 0 ||
+    processQueue.length > 0 ||
+    downloadProgress.value < downloadProgress.total // Check if there are still downloads in progress
+  ) {
     // Emit events instead of creating tasks
     if (downloadQueue.length > 0) {
       appendToLog(`EMIT newDownload`);
