@@ -221,5 +221,17 @@ export async function queue({
 
   multi.stop();
 
+  // Wait for all downloads to finish
+  let maxWait = 20;
+  while (downloadProgress.value < downloadProgress.total && maxWait-- > 0) {
+    console.log(
+      `Finishing downloads: ${downloadProgress.value}/${downloadProgress.total}`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1000)); // Avoid busy waiting
+  }
+  console.log(
+    `Finishing downloads: ${downloadProgress.value}/${downloadProgress.total}`,
+  );
+
   eventEmitter.emit("finish");
 }

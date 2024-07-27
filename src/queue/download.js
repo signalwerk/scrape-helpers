@@ -67,156 +67,151 @@ export async function download({
 }) {
   while (downloadQueue.length > 0) {
     const url = downloadQueue.shift();
+    let normalizedUrl;
+    let normalizedUrlHref;
+    let isUrlAllowed;
+    let domainIsAllowed;
 
     if (!url) {
       downloadProgress.increment();
       continue;
     }
 
-    let normalizedUrl;
     try {
       normalizedUrl = getNormalizedURL(url, url, {
         ...normalizeOptions,
         removeHash: true,
       });
-    } catch (error) {
-      appendToLog(`ERROR Normalizing URL: ${url} - ${error.message}`);
-      downloadProgress.increment();
-      continue;
-    }
+      normalizedUrlHref = normalizedUrl.href;
 
-    const normalizedUrlHref = normalizedUrl.href;
+      isUrlAllowed = !isRecected(normalizedUrlHref, rejectRegex, includeRegex);
+      domainIsAllowed = isDomainAllowed(
+        normalizedUrl.hostname,
+        allowDomains,
+        disallowDomains,
+      );
 
-    const isUrlAllowed = !isRecected(
-      normalizedUrlHref,
-      rejectRegex,
-      includeRegex,
-    );
-    const domainIsAllowed = isDomainAllowed(
-      normalizedUrl.hostname,
-      allowDomains,
-      disallowDomains,
-    );
-
-    if (domainIsAllowed && isUrlAllowed) {
-      if (!downloadedUrls[normalizedUrlHref]) {
-        const fileStatus = {
-          url: normalizedUrlHref,
-          status: null,
-          mimeType: null,
-          path: null,
-          error: null,
-        };
-
-        try {
-          const options = {
-            timeout: 15000, // Set a timeout
+      if (domainIsAllowed && isUrlAllowed) {
+        if (!downloadedUrls[normalizedUrlHref]) {
+          const fileStatus = {
             url: normalizedUrlHref,
-            responseType: "stream",
+            status: null,
+            mimeType: null,
+            path: null,
+            error: null,
           };
 
-          appendToLog(`START Downloading: ${normalizedUrlHref}`);
-          const response = await axios({ ...options, method: "get" });
-          appendToLog(`                   END ${normalizedUrlHref}`);
-
-          const responseUrl = response.request.res.responseUrl;
-
-          let normalizedResponseUrl;
           try {
-            normalizedResponseUrl = normalizeURL(
-              responseUrl,
-              normalizedUrlHref,
-              {
-                ...normalizeOptions,
-                removeHash: true,
-              },
-            );
-          } catch (error) {
-            appendToLog(
-              `ERROR Normalizing Response URL: ${responseUrl} - ${error.message}`,
-            );
-            downloadProgress.increment();
-            continue;
-          }
-
-          const contentType = response.headers["content-type"];
-          const mimeType = getMimeType(contentType);
-
-          if (normalizedUrlHref !== normalizedResponseUrl) {
-            downloadedUrls[normalizedUrlHref] = {
-              ...fileStatus,
-              original: { url, normalized: normalizedUrlHref },
-              redirect: { url: responseUrl, normalized: normalizedResponseUrl },
+            const options = {
+              timeout: 15000, // Set a timeout
+              url: normalizedUrlHref,
+              responseType: "stream",
             };
-            fileStatus.url = normalizedResponseUrl;
-          }
 
-          if (!downloadedUrls[normalizedResponseUrl]) {
-            let filePath = null;
-            const fsPath = getFsPath(normalizedResponseUrl, mimeType);
-            filePath = path.join(downloadDir, fsPath);
-            ensureDirectoryExistence(filePath);
+            appendToLog(`START Downloading: ${normalizedUrlHref}`);
+            const response = await axios({ ...options, method: "get" });
+            appendToLog(`                   END ${normalizedUrlHref}`);
 
-            const writeStream = fs.createWriteStream(filePath);
-            response.data.pipe(writeStream);
-            await new Promise((resolve, reject) => {
-              writeStream.on("finish", resolve);
-              writeStream.on("error", reject);
-            });
+            const responseUrl = response.request.res.responseUrl;
 
-            fileStatus.status = response.status;
-            fileStatus.path = filePath;
-            fileStatus.mimeType = mimeType;
+            let normalizedResponseUrl;
+            try {
+              normalizedResponseUrl = normalizeURL(
+                responseUrl,
+                normalizedUrlHref,
+                {
+                  ...normalizeOptions,
+                  removeHash: true,
+                },
+              );
+            } catch (error) {
+              appendToLog(
+                `ERROR Normalizing Response URL: ${responseUrl} - ${error.message}`,
+              );
+              downloadProgress.increment();
+              continue;
+            }
 
-            if (mimeType === "text/html" || mimeType === "text/css") {
-              processQueue.push({
-                url: normalizedUrlHref,
-                path: filePath,
-                mimeType,
+            const contentType = response.headers["content-type"];
+            const mimeType = getMimeType(contentType);
+
+            if (normalizedUrlHref !== normalizedResponseUrl) {
+              downloadedUrls[normalizedUrlHref] = {
+                ...fileStatus,
+                original: { url, normalized: normalizedUrlHref },
                 redirect: {
                   url: responseUrl,
                   normalized: normalizedResponseUrl,
                 },
-              });
-              processProgress.setTotal(processProgress.total + 1);
+              };
+              fileStatus.url = normalizedResponseUrl;
             }
 
-            downloadedUrls[normalizedResponseUrl] = fileStatus;
+            if (!downloadedUrls[normalizedResponseUrl]) {
+              let filePath = null;
+              const fsPath = getFsPath(normalizedResponseUrl, mimeType);
+              filePath = path.join(downloadDir, fsPath);
+              ensureDirectoryExistence(filePath);
+
+              const writeStream = fs.createWriteStream(filePath);
+              response.data.pipe(writeStream);
+              await new Promise((resolve, reject) => {
+                writeStream.on("finish", resolve);
+                writeStream.on("error", reject);
+              });
+
+              fileStatus.status = response.status;
+              fileStatus.path = filePath;
+              fileStatus.mimeType = mimeType;
+
+              if (mimeType === "text/html" || mimeType === "text/css") {
+                processQueue.push({
+                  url: normalizedUrlHref,
+                  path: filePath,
+                  mimeType,
+                  redirect: {
+                    url: responseUrl,
+                    normalized: normalizedResponseUrl,
+                  },
+                });
+                processProgress.setTotal(processProgress.total + 1);
+              }
+
+              downloadedUrls[normalizedResponseUrl] = fileStatus;
+            }
+          } catch (error) {
+            appendToLog(`                   ERROR ${normalizedUrlHref}`);
+            appendToLog(
+              `Failed to download ${normalizedUrlHref}: ${error.message}`,
+            );
+
+            fileStatus.status = "error";
+            fileStatus.error = error.message;
+            downloadedUrls[normalizedUrlHref] = fileStatus;
           }
-        } catch (error) {
-          appendToLog(`                   ERROR ${normalizedUrlHref}`);
-          appendToLog(
-            `Failed to download ${normalizedUrlHref}: ${error.message}`,
-          );
 
-          fileStatus.status = "error";
-          fileStatus.error = error.message;
-          downloadedUrls[normalizedUrlHref] = fileStatus;
+          try {
+            await writeFile(
+              downloadedFile,
+              JSON.stringify(downloadedUrls, null, 2),
+            );
+          } catch (error) {
+            appendToLog(
+              `ERROR Writing to file: ${downloadedFile} - ${error.message}`,
+            );
+          }
         }
-
-        try {
-          await writeFile(
-            downloadedFile,
-            JSON.stringify(downloadedUrls, null, 2),
-          );
-        } catch (error) {
-          appendToLog(
-            `ERROR Writing to file: ${downloadedFile} - ${error.message}`,
-          );
-        }
+      } else {
+        appendToLog(
+          `REJECT Downloading: ${normalizedUrlHref} (${
+            isUrlAllowed ? "url allowed" : "url not allowed"
+          }, ${domainIsAllowed ? "domain allowed" : "domain not allowed"})`,
+        );
       }
-    } else {
-      appendToLog(
-        `REJECT Downloading: ${normalizedUrlHref} (${
-          isUrlAllowed ? "url allowed" : "url not allowed"
-        }, ${domainIsAllowed ? "domain allowed" : "domain not allowed"})`,
-      );
-    }
-
-    try {
-      downloadProgress.increment();
     } catch (error) {
-      appendToLog(`ERROR Incrementing download progress: ${error.message}`);
+      appendToLog(`ERROR Processing URL: ${url} - ${error.message}`);
+    } finally {
+      downloadProgress.increment();
     }
   }
 }
