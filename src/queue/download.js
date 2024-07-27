@@ -69,6 +69,7 @@ export async function download({
     const url = downloadQueue.shift();
 
     if (!url) {
+      downloadProgress.increment();
       continue;
     }
 
@@ -80,6 +81,7 @@ export async function download({
       });
     } catch (error) {
       appendToLog(`ERROR Normalizing URL: ${url} - ${error.message}`);
+      downloadProgress.increment();
       continue;
     }
 
@@ -133,6 +135,7 @@ export async function download({
             appendToLog(
               `ERROR Normalizing Response URL: ${responseUrl} - ${error.message}`,
             );
+            downloadProgress.increment();
             continue;
           }
 

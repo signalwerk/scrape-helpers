@@ -195,7 +195,7 @@ export async function queue({
   while (
     downloadQueue.length > 0 ||
     processQueue.length > 0 ||
-    downloadProgress.value < downloadProgress.total // Check if there are still downloads in progress
+    !(downloadProgress.value > 1) // Check if download started
   ) {
     // Emit events instead of creating tasks
     if (downloadQueue.length > 0) {
@@ -206,6 +206,16 @@ export async function queue({
       appendToLog(`EMIT newProcessing`);
       eventEmitter.emit("newProcessing");
     }
+
+    // console.log(`\n`);
+    // console.log(`Idle`);
+    // console.log(`Download Queue: ${downloadQueue.length}`);
+    // console.log(`Process Queue: ${processQueue.length}`);
+    // console.log(
+    //   `Download Progress: ${downloadProgress.value}/${downloadProgress.total}`,
+    // );
+    // console.log(`\n`);
+
     await new Promise((resolve) => setTimeout(resolve, 1000)); // Avoid busy waiting
   }
 
