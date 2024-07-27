@@ -174,7 +174,11 @@ export async function processFile({
 
       // Use PostCSS to parse and handle the CSS
       postcss([plugin])
-        .process(content)
+        .process(content, {
+          // Explicitly set the `from` option to `undefined` to prevent
+          // sourcemap warnings which aren't relevant to this use case.
+          from: undefined,
+        })
         .then(() => {
           resources.backgroundImages.forEach((originalUrl) => {
             // const fullUrl = absoluteUrl(originalUrl, url);

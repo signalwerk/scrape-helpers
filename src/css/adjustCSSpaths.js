@@ -21,10 +21,14 @@ export async function adjustCSSpaths({
         searchParameters: "remove",
       },
       appendToLog,
-    })
+    }),
   );
   const formattedCss = await postcss([plugin])
-    .process(content)
+    .process(content, {
+      // Explicitly set the `from` option to `undefined` to prevent
+      // sourcemap warnings which aren't relevant to this use case.
+      from: undefined,
+    })
     .then((result) => {
       // The transformed CSS, where URLs have been replaced.
       return prettier.format(result.css, {
