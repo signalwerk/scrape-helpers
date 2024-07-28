@@ -106,6 +106,11 @@ export async function download({
               timeout: 15000, // Set a timeout
               url: normalizedUrlHref,
               responseType: "stream",
+              headers: {
+                // we are chrome right?
+                "User-Agent":
+                  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+              },
             };
 
             appendToLog(`START Downloading: ${normalizedUrlHref}`);
