@@ -1,4 +1,5 @@
 import axios from "axios";
+import https from "https";
 import fs from "fs";
 import path from "path";
 import util from "util";
@@ -111,6 +112,9 @@ export async function download({
                 "User-Agent":
                   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
               },
+              httpsAgent: new https.Agent({
+                rejectUnauthorized: false,
+              }),
             };
 
             appendToLog(`START Downloading: ${normalizedUrlHref}`);

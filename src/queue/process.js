@@ -163,8 +163,9 @@ export async function processFile({
         await process["text/html"](
           { url: urlRoot, path, appendToLog },
           (urls) => {
-            downloadQueue.push(...urls);
-            downloadProgress.setTotal(downloadProgress.total + urls.length);
+            urls.forEach((fullUrl) => {
+              addUrlToQueue(fullUrl);
+            });
           },
         );
       }
