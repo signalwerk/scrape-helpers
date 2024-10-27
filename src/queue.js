@@ -1,5 +1,5 @@
 import fs from "fs";
-import path from "path";
+import { ensureDirectoryExistence } from "./ensureDirectoryExistence.js";
 import util from "util";
 import cliProgress from "cli-progress";
 import { EventEmitter } from "events";
@@ -24,6 +24,8 @@ export async function queue({
   postProcess,
   process,
 }) {
+  ensureDirectoryExistence(logFile);
+
   eventEmitter.on("finish", async () => {
     const bar1 = new cliProgress.SingleBar(
       {
@@ -49,7 +51,9 @@ export async function queue({
         item.status !== "error" &&
         item.mimeType === "text/html"
       ) {
-        fs.copyFileSync(item.path, `${item.path}.orig`);
+        if (!fs.existsSync(`${item.path}.orig`)) {
+          fs.copyFileSync(item.path, `${item.path}.orig`);
+        }
 
         appendToLog(`START postprocess text/html`);
 
@@ -65,7 +69,9 @@ export async function queue({
         item.status !== "error" &&
         item.mimeType === "text/css"
       ) {
-        fs.copyFileSync(item.path, `${item.path}.orig`);
+        if (!fs.existsSync(`${item.path}.orig`)) {
+          fs.copyFileSync(item.path, `${item.path}.orig`);
+        }
 
         appendToLog(`START postprocess text/css`);
 
@@ -80,7 +86,9 @@ export async function queue({
         item.status !== "error" &&
         item.mimeType === "application/javascript"
       ) {
-        fs.copyFileSync(item.path, `${item.path}.orig`);
+        if (!fs.existsSync(`${item.path}.orig`)) {
+          fs.copyFileSync(item.path, `${item.path}.orig`);
+        }
 
         appendToLog(`START postprocess application/javascript`);
 
@@ -187,6 +195,7 @@ export async function queue({
   const downloadProgress = multi.create(downloadQueue.length, 0, {
     barName: "Downloading",
   });
+
   const processProgress = multi.create(processQueue.length, 0, {
     barName: "Processing ",
   });
@@ -206,15 +215,6 @@ export async function queue({
       appendToLog(`EMIT newProcessing`);
       eventEmitter.emit("newProcessing");
     }
-
-    // console.log(`\n`);
-    // console.log(`Idle`);
-    // console.log(`Download Queue: ${downloadQueue.length}`);
-    // console.log(`Process Queue: ${processQueue.length}`);
-    // console.log(
-    //   `Download Progress: ${downloadProgress.value}/${downloadProgress.total}`,
-    // );
-    // console.log(`\n`);
 
     await new Promise((resolve) => setTimeout(resolve, 1000)); // Avoid busy waiting
   }
