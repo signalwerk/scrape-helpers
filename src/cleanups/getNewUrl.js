@@ -10,7 +10,7 @@ export function getNewUrl({
   normalizeOptions,
   appendToLog,
 }) {
-  const fullUrl = null;
+  let fullUrl = null;
   try {
     fullUrl = getNormalizedURL(url, refferer, normalizeOptions);
   } catch (error) {
@@ -18,7 +18,7 @@ export function getNewUrl({
       `ERROR getNewUrl:
                                   url ${url}
                                   refferer ${refferer}
-                                  `,
+                                  options ${JSON.stringify(normalizeOptions)}`,
     );
 
     return url;
