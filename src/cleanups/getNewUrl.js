@@ -10,7 +10,19 @@ export function getNewUrl({
   normalizeOptions,
   appendToLog,
 }) {
-  const fullUrl = getNormalizedURL(url, refferer, normalizeOptions);
+  const fullUrl = null;
+  try {
+    fullUrl = getNormalizedURL(url, refferer, normalizeOptions);
+  } catch (error) {
+    appendToLog(
+      `ERROR getNewUrl:
+                                  url ${url}
+                                  refferer ${refferer}
+                                  `,
+    );
+
+    return url;
+  }
 
   const destinationItem = downloadedFiles[fullUrl.href];
 
@@ -34,7 +46,7 @@ export function getNewUrl({
                                   refferer ${refferer}
                                   newUrl ${newUrl}
                                   newPath ${newPath}
-                                  `
+                                  `,
     );
 
     return newPath;
@@ -50,7 +62,7 @@ export function getNewUrl({
                                     ? destinationItem.url
                                     : "undefined"
                                 }
-                                `
+                                `,
   );
 
   return url;

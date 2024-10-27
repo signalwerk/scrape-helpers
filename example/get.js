@@ -1,15 +1,12 @@
 #!/usr/bin/env node
 
-import { fetchSiteMap } from "./packages/scrape-helpers/src/sitemap.js";
 import { queue } from "./packages/scrape-helpers/src/queue.js";
-import { ensureDirectoryExistence } from "./packages/scrape-helpers/src/ensureDirectoryExistence.js";
 import process from "process";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import path from "path";
 import prettier from "prettier";
-import cheerio from "cheerio";
-
+import * as cheerio from "cheerio";
 import fs from "fs";
 import { adjustCSSpaths } from "./packages/scrape-helpers/src/css/adjustCSSpaths.js";
 import { fixFilename } from "./packages/scrape-helpers/src/cleanups/fixFilename.js";
@@ -23,25 +20,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const DATA_FOLDER = path.join(__dirname, "DATA");
-const SITEMAP_FILE = path.join(DATA_FOLDER, "sitemap.json"); // specify file path for sitemap
 
 // Get command line arguments
 const args = process.argv.slice(2);
-
-async function sitemap() {
-  // make the function async to wait for response
-  console.log("Scraping sitemap...");
-  const response = await fetchSiteMap(`${PROTOCOL}://${DOMAIN}/robots.txt`); // wait for response
-  fs.writeFileSync(SITEMAP_FILE, JSON.stringify(response, null, 2)); // write response to file as pretty-printed JSON
-  console.log(`Sitemap written to ${SITEMAP_FILE}`); // log success message
-}
-
-const normalizeOptions = {
-  enforceHttps: true,
-  removeTrailingSlash: true,
-  removeHash: true,
-  searchParameters: "keep", // "remove",
-};
 
 async function runQueue() {
   console.log("Scraping...");
@@ -62,9 +43,24 @@ async function runQueue() {
     // rejectRegex: ".*",
     // includeRegex: ".*",
     // process: {
-    //   // process all files
+    //   // process all files before post-processing
     //   ["text/html"]: async ({ url, path }, appendCb) => {
     //     let newContent = fs.readFileSync(path, "utf8");
+
+    //     const replacements = [
+    //       {
+    //         search: `xxx`,
+    //         replace: `yyy`,
+    //       },
+    //     ];
+
+    //     for (const replacement of replacements) {
+    //       newContent = newContent.replaceAll(
+    //         replacement.search,
+    //         replacement.replace,
+    //       );
+    //     }
+
     //     fs.writeFileSync(path, newContent);
     //   },
     // },
@@ -134,10 +130,6 @@ switch (args[0]) {
   case "--clear":
     console.log("Clearing...");
     fs.rmSync(DATA_FOLDER, { recursive: true, force: true });
-    ensureDirectoryExistence(SITEMAP_FILE);
-    break;
-  case "--sitemap":
-    sitemap();
     break;
   case "--dl":
     runQueue();
@@ -147,7 +139,6 @@ switch (args[0]) {
     console.log("");
     console.log("Options:");
     console.log("  --clear     Delete the data folder");
-    console.log("  --sitemap   Get sitemap");
     console.log("  --dl        Download all files from domain");
     console.log("  --help      Show help");
     break;
