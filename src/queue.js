@@ -46,6 +46,10 @@ export async function queue({
 
       appendToLog(`START postprocess: ${key}`);
 
+      if (fs.existsSync(`${item.path}.orig`)) {
+        fs.copyFileSync(`${item.path}.orig`, item.path);
+      }
+
       if (
         postProcess["text/html"] &&
         item.status !== "error" &&

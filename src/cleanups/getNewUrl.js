@@ -1,5 +1,6 @@
 import { getNormalizedURL } from "../normalizeURL.js";
 import { getFsPath } from "../getFsPath.js";
+import "./getRelativeURL.js";
 
 // A function to replace the old URL with a new one. Implement your own logic here.
 
@@ -34,10 +35,9 @@ export function getNewUrl({
     const newUrl = getFsPath(endItem.url, endItem.mimeType);
     const finalUrl = `${fullUrl.protocol}/${newUrl}`; // should be destinationItem's protocol
 
-    const path = new URL(finalUrl);
+    const path = new URL(finalUrl.replace("?", "%3F"));
     const newPath = path
       .getRelativeURL(refferer, false, false)
-      .replace("?", "%3F")
       .replace(":", "%3A");
 
     appendToLog(
@@ -45,8 +45,8 @@ export function getNewUrl({
                                   url ${url}
                                   refferer ${refferer}
                                   newUrl ${newUrl}
-                                  newPath ${newPath}
-                                  `,
+                                  newPath ${newPath}`,
+      // options ${JSON.stringify(normalizeOptions)}
     );
 
     return newPath;

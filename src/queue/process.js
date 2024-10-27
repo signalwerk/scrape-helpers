@@ -4,7 +4,6 @@ import util from "util";
 import postcss from "postcss";
 import { absoluteUrl, getNormalizedURL } from "../normalizeURL.js";
 import { isDomainAllowed, isRejected } from "./download.js";
-import "../cleanups/getRelativeURL.js";
 
 const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
@@ -208,7 +207,7 @@ export async function processFile({
         })
         .catch((err) => {
           console.error(`Error processing the CSS (${path}):`);
-          console.error(`    ${err.message}`)
+          console.error(`    ${err.message}`);
         });
     }
 
