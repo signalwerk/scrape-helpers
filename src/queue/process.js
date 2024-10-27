@@ -1,9 +1,9 @@
-import cheerio from "cheerio";
+import * as cheerio from "cheerio";
 import fs from "fs";
 import util from "util";
 import postcss from "postcss";
 import { absoluteUrl, getNormalizedURL } from "../normalizeURL.js";
-import { isDomainAllowed, isRecected } from "./download.js";
+import { isDomainAllowed, isRejected } from "./download.js";
 import "../cleanups/getRelativeURL.js";
 
 const readFile = util.promisify(fs.readFile);
@@ -207,7 +207,8 @@ export async function processFile({
           });
         })
         .catch((err) => {
-          console.error("Error processing the CSS:", err);
+          console.error(`Error processing the CSS (${path}):`);
+          console.error(`    ${err.message}`)
         });
     }
 

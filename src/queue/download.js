@@ -25,18 +25,22 @@ export function isDomainAllowed(domain, allowDomains, disallowDomains) {
   return false;
 }
 
-export function isRecected(url, rejectRegex, includeRegex) {
+export function isRejected(url, rejectRegex, includeRegex) {
+  // If includeRegex is provided and does NOT match, return true (rejected)
   if (includeRegex) {
-    const regex = new RegExp(includeRegex, "g");
-    if (regex.test(url)) {
-      return false;
+    const includeRegexObj = new RegExp(includeRegex, "g");
+    if (!includeRegexObj.test(url)) {
+      return true;
     }
   }
 
+  // If rejectRegex is provided and matches, return true (rejected)
   if (rejectRegex) {
-    const regex = new RegExp(rejectRegex, "g");
-    return regex.test(url);
+    const rejectRegexObj = new RegExp(rejectRegex, "g");
+    return rejectRegexObj.test(url);
   }
+
+  // If neither condition is met, return false (not rejected)
   return false;
 }
 
@@ -85,7 +89,7 @@ export async function download({
       });
       normalizedUrlHref = normalizedUrl.href;
 
-      isUrlAllowed = !isRecected(normalizedUrlHref, rejectRegex, includeRegex);
+      isUrlAllowed = !isRejected(normalizedUrlHref, rejectRegex, includeRegex);
       domainIsAllowed = isDomainAllowed(
         normalizedUrl.hostname,
         allowDomains,
