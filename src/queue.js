@@ -163,6 +163,8 @@ export async function queue({
         });
       }
     }
+  } else {
+    console.log("No downloaded file found", downloadedFile);
   }
 
   const appendToLog = (line) => {

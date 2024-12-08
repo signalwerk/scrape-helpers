@@ -26,7 +26,7 @@ export function getNormalizedURL(
     parsedUrl = new URL(originalUrl, pageUrl);
   } catch (error) {
     console.error("Error occurred while parsing the URL:", originalUrl);
-    throw error;
+    return null;
   }
 
   // Remove hash if the option is set to true
