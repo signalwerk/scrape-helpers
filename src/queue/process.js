@@ -1,10 +1,9 @@
-import cheerio from "cheerio";
+import * as cheerio from "cheerio";
 import fs from "fs";
 import util from "util";
 import postcss from "postcss";
 import { absoluteUrl, getNormalizedURL } from "../normalizeURL.js";
-import { isDomainAllowed, isRecected } from "./download.js";
-import "../cleanups/getRelativeURL.js";
+import { isDomainAllowed, isRejected } from "./download.js";
 
 const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
@@ -143,6 +142,7 @@ export async function processFile({
       if (typesToDownload.includes("image")) {
         processElements("img", "src");
         processElements("img", "srcset"); // Handling srcset for img
+        processElements("source", "srcset"); // Handling srcset for img
       }
 
       // Process scripts if needed
@@ -162,8 +162,9 @@ export async function processFile({
         await process["text/html"](
           { url: urlRoot, path, appendToLog },
           (urls) => {
-            downloadQueue.push(...urls);
-            downloadProgress.setTotal(downloadProgress.total + urls.length);
+            urls.forEach((fullUrl) => {
+              addUrlToQueue(fullUrl);
+            });
           },
         );
       }
@@ -173,7 +174,11 @@ export async function processFile({
 
       // Use PostCSS to parse and handle the CSS
       postcss([plugin])
-        .process(content)
+        .process(content, {
+          // Explicitly set the `from` option to `undefined` to prevent
+          // sourcemap warnings which aren't relevant to this use case.
+          from: undefined,
+        })
         .then(() => {
           resources.backgroundImages.forEach((originalUrl) => {
             // const fullUrl = absoluteUrl(originalUrl, url);
@@ -201,7 +206,8 @@ export async function processFile({
           });
         })
         .catch((err) => {
-          console.error("Error processing the CSS:", err);
+          console.error(`Error processing the CSS (${path}):`);
+          console.error(`    ${err.message}`);
         });
     }
 

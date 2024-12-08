@@ -1,5 +1,5 @@
 import fs from "fs";
-import path from "path";
+import { ensureDirectoryExistence } from "./ensureDirectoryExistence.js";
 import util from "util";
 import cliProgress from "cli-progress";
 import { EventEmitter } from "events";
@@ -24,6 +24,8 @@ export async function queue({
   postProcess,
   process,
 }) {
+  ensureDirectoryExistence(logFile);
+
   eventEmitter.on("finish", async () => {
     const bar1 = new cliProgress.SingleBar(
       {
@@ -37,9 +39,6 @@ export async function queue({
 
     bar1.start(Object.keys(downloadedUrls).length, 0);
 
-    // Wait for 2 seconds
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
     for (const [key, value] of Object.entries(downloadedUrls)) {
       bar1.increment();
 
@@ -47,12 +46,18 @@ export async function queue({
 
       appendToLog(`START postprocess: ${key}`);
 
+      if (fs.existsSync(`${item.path}.orig`)) {
+        fs.copyFileSync(`${item.path}.orig`, item.path);
+      }
+
       if (
         postProcess["text/html"] &&
         item.status !== "error" &&
         item.mimeType === "text/html"
       ) {
-        fs.copyFileSync(item.path, `${item.path}.orig`);
+        if (!fs.existsSync(`${item.path}.orig`)) {
+          fs.copyFileSync(item.path, `${item.path}.orig`);
+        }
 
         appendToLog(`START postprocess text/html`);
 
@@ -68,7 +73,9 @@ export async function queue({
         item.status !== "error" &&
         item.mimeType === "text/css"
       ) {
-        fs.copyFileSync(item.path, `${item.path}.orig`);
+        if (!fs.existsSync(`${item.path}.orig`)) {
+          fs.copyFileSync(item.path, `${item.path}.orig`);
+        }
 
         appendToLog(`START postprocess text/css`);
 
@@ -83,7 +90,9 @@ export async function queue({
         item.status !== "error" &&
         item.mimeType === "application/javascript"
       ) {
-        fs.copyFileSync(item.path, `${item.path}.orig`);
+        if (!fs.existsSync(`${item.path}.orig`)) {
+          fs.copyFileSync(item.path, `${item.path}.orig`);
+        }
 
         appendToLog(`START postprocess application/javascript`);
 
@@ -99,6 +108,7 @@ export async function queue({
   });
 
   eventEmitter.on("newDownload", async () => {
+    appendToLog(`ON newDownload`);
     await download({
       typesToDownload,
       appendToLog,
@@ -120,6 +130,7 @@ export async function queue({
   });
 
   eventEmitter.on("newProcessing", async () => {
+    appendToLog(`ON newProcessing`);
     processFile({
       typesToDownload,
       appendToLog,
@@ -190,23 +201,43 @@ export async function queue({
   const downloadProgress = multi.create(downloadQueue.length, 0, {
     barName: "Downloading",
   });
+
   const processProgress = multi.create(processQueue.length, 0, {
     barName: "Processing ",
   });
 
   // Keep checking if there's work to do as long as at least one queue is not empty.
-  while (downloadQueue.length > 0 || processQueue.length > 0) {
+  while (
+    downloadQueue.length > 0 ||
+    processQueue.length > 0 ||
+    !(downloadProgress.value > 1) // Check if download started
+  ) {
     // Emit events instead of creating tasks
     if (downloadQueue.length > 0) {
+      appendToLog(`EMIT newDownload`);
       eventEmitter.emit("newDownload");
     }
     if (processQueue.length > 0) {
+      appendToLog(`EMIT newProcessing`);
       eventEmitter.emit("newProcessing");
     }
+
     await new Promise((resolve) => setTimeout(resolve, 1000)); // Avoid busy waiting
   }
 
   multi.stop();
+
+  // Wait for all downloads to finish
+  let maxWait = 20;
+  while (downloadProgress.value < downloadProgress.total && maxWait-- > 0) {
+    console.log(
+      `Finishing downloads: ${downloadProgress.value}/${downloadProgress.total}`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1000)); // Avoid busy waiting
+  }
+  console.log(
+    `Finishing downloads: ${downloadProgress.value}/${downloadProgress.total}`,
+  );
 
   eventEmitter.emit("finish");
 }
