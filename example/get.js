@@ -71,55 +71,72 @@ async function runQueue() {
         appendToLog,
       }) => {
         const content = fs.readFileSync(downloadedFile.path, "utf8");
-        const formattedCss = await adjustCSSpaths({
-          downloadedFile,
-          downloadedFiles,
-          content,
-          appendToLog,
-        });
-        fs.writeFileSync(downloadedFile.path, formattedCss);
+        try {
+          const formattedCss = await adjustCSSpaths({
+            downloadedFile,
+            downloadedFiles,
+            content,
+            appendToLog,
+          });
+          fs.writeFileSync(downloadedFile.path, formattedCss);
+        } catch (e) {
+          console.log(`Error in adjust CSS ${downloadedFile.path}`);
+          console.log(e);
+        }
       },
       ["text/html"]: async ({
         downloadedFile,
         downloadedFiles,
         appendToLog,
       }) => {
-        const content = fs.readFileSync(downloadedFile.path, "utf8");
-        const $ = cheerio.load(content);
+        try {
+          const content = fs.readFileSync(downloadedFile.path, "utf8");
+          const $ = cheerio.load(content);
 
-        const fix = (url) =>
-          getNewUrl({
-            url,
-            refferer: downloadedFile.url,
-            downloadedFiles: downloadedFiles,
-            appendToLog,
-          });
+          const fix = (url) =>
+            getNewUrl({
+              url,
+              refferer: downloadedFile.url,
+              downloadedFiles: downloadedFiles,
+              appendToLog,
+            });
 
-        const fixButKeepHash = (url) => {
-          let hash = "";
-          if (url.includes("#")) {
-            const parts = url.split("#");
-            url = parts[0];
-            hash = "#" + parts[1];
+          const fixButKeepHash = (url) => {
+            let hash = "";
+            if (url.includes("#")) {
+              const parts = url.split("#");
+              url = parts[0];
+              hash = "#" + parts[1];
+            }
+            return fix(url) + hash;
+          };
+
+          fixFilename($, "a", "href", fixButKeepHash);
+          fixFilename($, "img", "src", fix);
+          fixFilename($, "img", "srcset", fix);
+          fixFilename($, "source", "srcset", fix);
+          fixFilename($, "script", "src", fix);
+          fixFilename($, "link[rel=stylesheet]", "href", fix);
+          fixFilename($, "link[rel=icon]", "href", fix);
+          fixFilename($, "link[rel=canonical]", "href", fix);
+          fixFilename($, "link[rel=alternate]", "href", fix);
+
+          let finalHtml = $.html();
+
+          try {
+            finalHtml = await prettier.format(finalHtml, {
+              parser: "html",
+            });
+          } catch (e) {
+            console.log(`Error in prettier HTML ${downloadedFile.path}`);
+            console.log(e);
           }
-          return fix(url) + hash;
-        };
 
-        fixFilename($, "a", "href", fixButKeepHash);
-        fixFilename($, "img", "src", fix);
-        fixFilename($, "img", "srcset", fix);
-        fixFilename($, "source", "srcset", fix);
-        fixFilename($, "script", "src", fix);
-        fixFilename($, "link[rel=stylesheet]", "href", fix);
-        fixFilename($, "link[rel=icon]", "href", fix);
-        fixFilename($, "link[rel=canonical]", "href", fix);
-        fixFilename($, "link[rel=alternate]", "href", fix);
-
-        const formattedHtml = await prettier.format($.html(), {
-          parser: "html",
-        });
-
-        fs.writeFileSync(downloadedFile.path, formattedHtml);
+          fs.writeFileSync(downloadedFile.path, finalHtml);
+        } catch (e) {
+          console.log(`Error in adjust HTML ${downloadedFile.path}`);
+          console.log(e);
+        }
       },
     },
   }); // wait for response

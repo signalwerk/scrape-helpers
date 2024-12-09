@@ -105,6 +105,7 @@ export async function queue({
     }
 
     bar1.stop();
+    console.log("Finished post processing");
   });
 
   eventEmitter.on("newDownload", async () => {
