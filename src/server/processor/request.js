@@ -1,69 +1,58 @@
-export function isPathValid({ job, allowed, disallowed }, next) {
-  let path = null;
+function validatePattern({ job, allowed, disallowed, getValue, type }, next) {
+  let value = null;
   try {
     const parsedUrl = new URL(job.data.uri);
-    path = parsedUrl.pathname + parsedUrl.search;
+    value = getValue(parsedUrl);
   } catch (error) {
-    throw new Error("Error occurred while parsing the URL.");
+    throw new Error(`Error occurred while parsing the URL.`);
   }
 
-  // Check disallowed path-patterns
+  // Check disallowed patterns
   if (
     disallowed?.some((pattern) =>
-      pattern instanceof RegExp ? pattern.test(path) : pattern === path,
+      pattern instanceof RegExp ? pattern.test(value) : pattern === value,
     )
   ) {
-    job.log(`Domain ${path} is disallowed.`);
+    job.log(`${type} ${value} is disallowed.`);
     return next(null, true);
   }
 
-  // Check allowed path-patterns
+  // Check allowed patterns
   if (
+    !allowed ||
     allowed.length === 0 ||
     allowed.some((pattern) =>
-      pattern instanceof RegExp ? pattern.test(path) : pattern === path,
+      pattern instanceof RegExp ? pattern.test(value) : pattern === value,
     )
   ) {
-    job.log(`Domain ${path} is allowed.`);
+    job.log(`${type} ${value} is allowed.`);
     return next();
   }
 
-  job.log(`Domain ${path} is not allowed.`);
+  job.log(`${type} ${value} is not allowed.`);
   next(null, true);
 }
 
-export function isDomainValid({ job, allowed, disallowed }, next) {
-  let domain = null;
-  try {
-    const parsedUrl = new URL(job.data.uri);
-    domain = parsedUrl.hostname;
-  } catch (error) {
-    throw new Error("Error occurred while parsing the URL.");
-  }
+export function isPathValid(params, next) {
+  return validatePattern(
+    {
+      ...params,
+      getValue: (url) => url.pathname + url.search,
+      type: "Path",
+    },
+    next,
+  );
+}
 
-  // Check disallowed domain-patterns
-  if (
-    disallowed?.some((pattern) =>
-      pattern instanceof RegExp ? pattern.test(domain) : pattern === domain,
-    )
-  ) {
-    job.log(`Domain ${domain} is disallowed.`);
-    return next(null, true);
-  }
-
-  // Check allowed domain-patterns
-  if (
-    allowed.length === 0 ||
-    allowed.some((pattern) =>
-      pattern instanceof RegExp ? pattern.test(domain) : pattern === domain,
-    )
-  ) {
-    job.log(`Domain ${domain} is allowed.`);
-    return next();
-  }
-
-  job.log(`Domain ${domain} is not allowed.`);
-  next(null, true);
+export function isDomainValid(params, next) {
+  return validatePattern(
+    {
+      ...params,
+      getValue: (url) => url.hostname,
+      type: "Domain",
+    },
+    next,
+  );
 }
 
 export function isAlreadyRequested({ job, requestTracker, getKey }, next) {
