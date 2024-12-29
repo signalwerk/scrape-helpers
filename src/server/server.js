@@ -23,6 +23,9 @@ export class WebServer {
       parse: new Queue("parse", {
         maxConcurrent: options.parseConcurrency || 100,
       }),
+      write: new Queue("write", {
+        maxConcurrent: options.writeConcurrency || 50,
+      }),
     };
 
     // Initialize express and socket.io
@@ -59,6 +62,12 @@ export class WebServer {
         this.queues.parse.use(processor);
       });
     }
+
+    if (processors.write) {
+      processors.write.forEach((processor) => {
+        this.queues.write.use(processor);
+      });
+    }
   }
 
   setupEventHandlers() {
@@ -73,6 +82,10 @@ export class WebServer {
 
     this.events.on("createParseJob", (data) => {
       this.queues.parse.addJob(data);
+    });
+
+    this.events.on("createWriteJob", (data) => {
+      this.queues.write.addJob(data);
     });
   }
 
@@ -185,6 +198,7 @@ export class WebServer {
         request: this.queues.request.getStats(),
         fetch: this.queues.fetch.getStats(),
         parse: this.queues.parse.getStats(),
+        write: this.queues.write.getStats(),
       };
       this.io.emit("queueStats", stats);
       this.io.emit("historyUpdate");
@@ -212,6 +226,7 @@ export class WebServer {
         request: this.queues.request.getAllJobs(),
         fetch: this.queues.fetch.getAllJobs(),
         parse: this.queues.parse.getAllJobs(),
+        write: this.queues.write.getAllJobs(),
       });
     });
   }

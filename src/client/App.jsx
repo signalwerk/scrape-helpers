@@ -27,7 +27,7 @@ function App() {
   const [filters, setFilters] = useState({
     status: "all",
     search: "",
-    queues: new Set(["request", "fetch", "parse"]),
+    queues: new Set(["request", "fetch", "parse", "write"]),
     errorFilter: "all",
   });
 
@@ -153,12 +153,27 @@ function App() {
         >
           Add Test Request Job
         </button>
+        <button
+          className="button"
+          onClick={() =>
+            fetch("/api/jobs", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                type: "write",
+                data: { uri: requestURL },
+              }),
+            })
+          }
+        >
+          Write out
+        </button>
       </div>
 
       <div className="queue-admin__active">
         <h2>Active Jobs</h2>
         <div className="queue-admin__active-grid">
-          {["request", "fetch", "parse"].map((queueName) => (
+          {["request", "fetch", "parse", "write"].map((queueName) => (
             <div key={queueName} className="queue-admin__active-column">
               <h3>
                 {queueName} Queue ({queueStats[queueName]?.active || 0})
@@ -185,7 +200,7 @@ function App() {
 
         <div className="queue-admin__filters">
           <div className="queue-admin__queue-filters">
-            {["request", "fetch", "parse"].map((queueName) => (
+            {["request", "fetch", "parse", "write"].map((queueName) => (
               <label key={queueName} className="checkbox-label">
                 <input
                   type="checkbox"
