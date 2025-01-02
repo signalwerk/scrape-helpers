@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import { absoluteUrl } from "../utils/absoluteUrl.js";
+import { getMimeWithoutEncoding } from "../utils/mime.js";
 import postcss from "postcss";
 
 export async function guessMimeType({ job, cache }, next) {
@@ -20,7 +21,7 @@ export async function guessMimeType({ job, cache }, next) {
     }
   }
 
-  job.data.mimeType = mimeType.split(";")?.[0];
+  job.data.mimeType = getMimeWithoutEncoding(mimeType);
 
   next();
 }
