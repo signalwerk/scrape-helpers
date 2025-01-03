@@ -136,6 +136,20 @@ describe("UrlPatcher", () => {
     expect(result).toBe("https://example.com/blog/index.html");
   });
 
+  test("adjust http to https", async () => {
+    patcher.addRule({
+      // adjust http to https
+      transform: (url) => {
+        url.protocol = "https";
+        return url;
+      },
+      includes: [/^http:\/\//],
+    });
+
+    const result = patcher.patch("http://example.com/blog/index.html");
+    expect(result).toBe("https://example.com/blog/index.html");
+  });
+
   test("handles URL with query parameters", () => {
     patcher.addRule({
       transform: (url) => {

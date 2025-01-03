@@ -31,11 +31,18 @@ describe("urlToPath", () => {
     expect(result).toBe("https/example.com/search?page=1&q=test.html");
   });
 
+  test("handles query parameters with fsExt ending", async () => {
+    const job = "https://example.com/search.html?q=test&page=1";
+    const result = await urlToPath(job, "text/html");
+    expect(result).toBe("https/example.com/search.html?page=1&q=test.html");
+  });
+
   test("handles equivalent extensions (jpg)", async () => {
     const job = "https://example.com/photo.jpg";
     const result = await urlToPath(job, "image/jpeg");
     expect(result).toBe("https/example.com/photo.jpg");
   });
+
   test("handles equivalent extensions (jpeg)", async () => {
     const job = "https://example.com/photo.jpeg";
     const result = await urlToPath(job, "image/jpeg");
@@ -51,6 +58,21 @@ describe("urlToPath", () => {
   test("handles URLs with different extension than mime type", async () => {
     const job = "https://example.com/file.txt";
     const result = await urlToPath(job, "text/html");
-    expect(result).toBe("https/example.com/file.txt");
+    expect(result).toBe("https/example.com/file.txt.html");
+  });
+
+  test("handles very long urls", async () => {
+    const job =
+      "https://example.com/äöü/this_is_a_very_long_test_filename_designed_to_test_the_write_function_that_requires_handling_of_extremely_long_file_names_and_we_are_including_various_characters_numbers_and_more_just_to_fill_up_the_space_and_see_how_it_handles_extreme_cases_0123456789_abcdefghijklmnopqrstuvwxyz_äöü_&!=_end.html?q=test&page=1";
+    const result = await urlToPath(job, "text/html");
+    expect(result).toBe(
+      "https/example.com/äöü/this_is_a_very_long_test_filename_designed_to_test_the_write_function_that_requires_handling_of_extremely_long_file_names_and_we_are_including_various_characters_numbers_and_more_just_to_fill_up_the_space_and_see_how_it_handles_extreme_cases_0123456789_abcdefghijklmnopqrstuvwxyz_äöü_&!=_end.html?page=1&q=test.html",
+    );
+  });
+
+  test("adjust http to https", async () => {
+    const job = "http://example.com/file.html";
+    const result = await urlToPath(job, "text/html");
+    expect(result).toBe("https/example.com/file.html");
   });
 });

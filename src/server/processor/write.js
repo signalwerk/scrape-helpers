@@ -1,8 +1,19 @@
 import fs from "fs";
 import path from "path";
-import { writeFile } from "../utils/writeFile.js";
 import { getExtensionOfMime } from "../utils/mime.js";
 import { UrlPatcher } from "../utils/UrlPatcher.js";
+import { getExtension, sameExtension, fixFilename } from "../utils/fsUtils.js";
+
+export async function writeData({ job, data, metadata }, next) {
+  const baseDir = "./DATA/OUT";
+
+  const fsNameOfUri = urlToPath(job.data.uri, metadata.headers["content-type"]);
+  const filePath = path.resolve(baseDir, fsNameOfUri);
+
+  await writeFile(filePath, data);
+  job.log(`Wrote data to ${filePath}`);
+  next();
+}
 
 export function handleRedirected({ job, events, cache, getKey }, next) {
   const key = getKey(job);
@@ -46,98 +57,100 @@ export function handleRedirected({ job, events, cache, getKey }, next) {
   return next();
 }
 
-export async function writeData({ job, data, metadata }, next) {
-  const baseDir = "./DATA/OUT";
+const patcher = new UrlPatcher();
+patcher
+  .addRule({
+    // adjust http to https
+    transform: (url) => {
+      url.protocol = "https";
+      return url;
+    },
+    includes: [/^http:\/\//],
+  })
+  .addRule({
+    // Add index.html to the end of the pathname if it ends with a slash
+    transform: (url, data) => {
+      url.pathname += "index";
+      return [url, { ...data, fsExt: "html" }];
+    },
+    includes: [/\/$/],
+  })
+  .addRule({
+    // Sort query params
+    transform: (url) => {
+      url.search = new URLSearchParams(
+        [...new URLSearchParams(url.search).entries()].sort((a, b) =>
+          a[0].localeCompare(b[0]),
+        ),
+      ).toString();
+      return url;
+    },
+  })
+  .addRule({
+    // detect the extension from the pathname
+    transform: (url, data) => {
+      const fsExt = getExtension(url.pathname) || "";
 
-  const fsNameOfUri = urlToPath(job.data.uri, metadata.headers["content-type"]);
-  const filePath = path.resolve(baseDir, fsNameOfUri);
+      if (fsExt) {
+        return [
+          url,
+          {
+            ...data,
+            fsExt,
+            // pathnameWithoutFsExt: url.pathname.slice(0, -fsExt.length - 1),
+          },
+        ];
+      }
 
-  await writeFile(filePath, data);
-  job.log(`Wrote data to ${filePath}`);
-  next();
-}
+      return [url, { ...data, fsExt }];
+    },
+    excludes: [/\/$/],
+  });
 
-function getExtension(filename) {
-  var ext = path.extname(filename || "").split(".");
-  return ext[ext.length - 1];
-}
+export function urlToPath(uri, mime) {
+  let [url, data] = patcher.transform(decodeURIComponent(uri));
+  const mimeExt = getExtensionOfMime(mime);
 
-// Utility function to normalize extension based on the configuration
-function normalizeExtension(extension) {
-  if (!extension) {
-    return extension;
-  }
+  let result = [
+    url.protocol.replace(":", ""),
+    "/",
+    decodeURIComponent(url.hostname),
+    decodeURIComponent(url.pathname),
+  ];
 
-  // Convert to lowercase first
-  const lowerCaseExt = extension.toLowerCase();
+  // handle the search params
+  if (url.search) {
+    result.push(url.search);
 
-  // Check if this extension has an equivalent
-  for (const pair of equivalentExtensions) {
-    if (pair.includes(lowerCaseExt)) {
-      return pair[0]; // Always return the first item as the 'normalized' version
+    // If there is a search, we need to add the extension
+    if (mimeExt) {
+      result.push(`.${mimeExt}`);
+    } else if (data.fsExt) {
+      result.push(`.${data.fsExt}`);
     }
   }
 
-  return lowerCaseExt; // If no equivalent found, return as is
+  // if there is no search params let's check if we need to add the extension
+  if (!url.search) {
+    if (!sameExtension(data.fsExt, mimeExt)) {
+      if (mimeExt) {
+        result.push(`.${mimeExt}`);
+      }
+    }
+  }
+
+  return result.join("");
 }
 
-function sameExtension(fsExt, mimeExt) {
-  // Normalize extensions
-  const normalizedFsExt = normalizeExtension(fsExt);
-  const normalizedMimeExt = normalizeExtension(mimeExt);
-
-  return normalizedFsExt === normalizedMimeExt;
-}
-
-// Configuration for equivalent extensions
-const equivalentExtensions = [
-  ["jpg", "jpeg"],
-  ["htm", "html"],
-
-  // Add more equivalent pairs here
-  // ["ext1", "ext2"],
-];
-
-function fixFilename(name) {
-  const filename = name; // .replaceAll("%7C", "|");
-  const ext = path.extname(filename);
-  const basename = decodeURI(path.basename(filename, ext));
-
-  const result = `${basename.slice(0, 240 - ext.length)}${ext}`;
-
-  return result;
-}
-
-export function urlToPath(uri, mime) {
+export function urlToPathOLD(uri, mime) {
   const mimeExt = getExtensionOfMime(mime);
 
-  const patcher = new UrlPatcher();
-  patcher
-    .addRule({
-      transform: (url) => {
-        url.pathname += "index.html";
-        return url;
-      },
-      includes: [/\/$/],
-    })
-    .addRule({
-      transform: (url) => {
-        // Sort query params
-        url.search = new URLSearchParams(
-          [...new URLSearchParams(url.search).entries()].sort((a, b) =>
-            a[0].localeCompare(b[0]),
-          ),
-        ).toString();
-        return url;
-      },
-    });
-
-  const patchURI = patcher.patch(uri, mime);
-
-
-  const parsedUrl = new URL(patchURI);
+  const parsedUrl = new URL(uri);
+  let queryParams = new URLSearchParams(parsedUrl.search);
   // Convert to array, sort, and reconstruct
-  let sortedQuery = parsedUrl.search;
+  let sortedQuery = new URLSearchParams(
+    [...queryParams.entries()].sort((a, b) => a[0].localeCompare(b[0])),
+  ).toString();
 
   const pathname = parsedUrl.pathname;
 
@@ -150,6 +163,10 @@ export function urlToPath(uri, mime) {
 
   let result = `${parsedUrl.protocol.replace(":", "")}/${parsedUrl.hostname}`;
 
+  if (pathname.endsWith("/") && mimeExt === "html") {
+    return `${result}${pathname}index.html`;
+  }
+
   let filename = null;
 
   if (hasExt || sortedQuery) {
@@ -159,7 +176,7 @@ export function urlToPath(uri, mime) {
   }
 
   if (sortedQuery) {
-    filename += `${decodeURIComponent(sortedQuery)}.${ext}`;
+    filename += `?${decodeURIComponent(sortedQuery)}.${ext}`;
   }
 
   if (dirname && dirname !== "/") {
