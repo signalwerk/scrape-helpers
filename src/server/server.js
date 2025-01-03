@@ -12,6 +12,7 @@ export class WebServer {
     this.dataPatcher = options.dataPatcher;
     this.requestTracker = options.requestTracker;
     this.writeTracker = options.writeTracker;
+    this.urls = options.urls;
 
     // Initialize queues with custom settings
     this.queues = {
@@ -86,7 +87,8 @@ export class WebServer {
     });
 
     this.events.on("createWriteJob", (data) => {
-      this.queues.write.addJob(data);
+      let { cache, ...dataWithoutCache } = data;
+      this.queues.write.addJob(dataWithoutCache);
     });
   }
 
@@ -166,16 +168,22 @@ export class WebServer {
 
     // Add job endpoint
     this.app.post("/api/jobs", async (req, res) => {
-      const { type, data } = req.body;
-      const queue = this.queues[type];
+      const { type } = req.body;
 
-      if (!queue) {
+      if (type === "request" || type === "write") {
+        const queue = this.queues[type];
+
+        const jobIds = [];
+        for (const url of this.urls) {
+          const jobId = queue.addJob({ uri: url });
+          jobIds.push(jobId);
+        }
+
+        this.emitQueueStats();
+        res.json({ success: true, jobIds });
+      } else {
         return res.status(400).json({ error: "Invalid queue type" });
       }
-
-      const jobId = queue.addJob(data);
-      this.emitQueueStats();
-      res.json({ success: true, jobId });
     });
 
     // Clear history endpoint

@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import postcss from "postcss";
 import { absoluteUrl } from "../utils/absoluteUrl.js";
 import { getRelativeURL } from "../utils/getRelativeURL.js";
 import { getExtensionOfMime, getMimeWithoutEncoding } from "../utils/mime.js";
@@ -11,7 +12,10 @@ import { processElements } from "../utils/processElements.js";
 export async function writeData({ job, data, metadata }, next) {
   const baseDir = "./DATA/OUT";
 
-  const fsNameOfUri = urlToPath(job.data.uri, metadata.headers["content-type"]);
+  const fsNameOfUri = urlToPath(
+    job.data.uri,
+    metadata.headers["content-type"],
+  ).replace("file://", "/");
   const filePath = path.join(baseDir, fsNameOfUri);
 
   await writeFile(filePath, data);
@@ -115,7 +119,7 @@ patcher
     // add search params to the pathname and fix file extension
     transform: (url, data) => {
       if (url.search) {
-        url.pathname += url.search;
+        url.pathname += url.search.replaceAll("?", "---");
         url.search = "";
 
         // If there is a search, we need to add the extension
@@ -147,9 +151,9 @@ export function urlToPath(uri, mime) {
   const mimeExt = getExtensionOfMime(mime);
   let url = patcher.patch(uri, { mimeExt });
 
-  let result = decodeURIComponent(url);
+  let result = decodeURIComponent(url); // .replaceAll("?", "%3F"); // the get params are not encoded
 
-  return result.replace("file://", "/");
+  return result; // .replace("file://", "/");
 }
 
 export async function rewriteHtml(
@@ -161,9 +165,7 @@ export async function rewriteHtml(
   let baseUrl =
     absoluteUrl($("base")?.attr("href") || "", job.data.uri) || job.data.uri;
 
-  const mimeExt = getExtensionOfMime(mime);
-
-  let fileBaseUrl = patcher.patch(baseUrl, { mimeExt });
+  let fileBaseUrl = urlToPath(baseUrl, mime);
 
   processElements({
     $,
@@ -182,11 +184,62 @@ export async function rewriteHtml(
 
       const key = getKey(fullUrl);
       if (cache.has(key)) {
+        const metadata = cache.getMetadata(key);
+
+        let fileAbsoluteUrl = urlToPath(
+          fullUrl,
+          metadata.headers["content-type"],
+        );
+
+        const patchedUrl = getUrl
+          ? getUrl({ absoluteUrl: fileAbsoluteUrl, baseUrl: fileBaseUrl })
+          : getRelativeURL(fileAbsoluteUrl, fileBaseUrl, false, false);
+
+        job.log(`rewrite ${fullUrl} to ${patchedUrl}`);
+
+        return patchedUrl;
+      } 
+    },
+  });
+
+  job.log(`parseHtml done`);
+  next();
+}
+
+export async function rewriteCss(
+  { content, job, mime, cache, getKey, getUrl, events },
+  next,
+) {
+  job.log(`rewriteCss start`);
+
+  let baseUrl = job.data.uri;
+
+  let fileBaseUrl = urlToPath(baseUrl, mime);
+
+  const { plugin } = await replaceResources(
+    //
+    (url) => {
+      const fullUrl = absoluteUrl(url, baseUrl);
+      if (!fullUrl) return;
+
+      const writeJobData = {
+        ...job.data,
+        uri: fullUrl,
+        _parent: job.id,
+      };
+
+      job.log(`Created write job for resource: ${fullUrl}`);
+      events?.emit("createWriteJob", writeJobData);
+
+      const key = getKey(fullUrl);
+      if (cache.has(key)) {
         // urlToPath(uri, mime)
         const metadata = cache.getMetadata(key);
-        const mimeExt = getExtensionOfMime(metadata.headers["content-type"]);
 
-        let fileAbsoluteUrl = patcher.patch(fullUrl, { mimeExt });
+        let fileAbsoluteUrl = urlToPath(
+          fullUrl,
+          metadata.headers["content-type"],
+        );
 
         const patchedUrl = getUrl
           ? getUrl({ absoluteUrl: fileAbsoluteUrl, baseUrl: fileBaseUrl })
@@ -197,8 +250,54 @@ export async function rewriteHtml(
         return patchedUrl;
       }
     },
-  });
+  );
+  const formattedCss = await postcss([plugin])
+    .process(content, {
+      // Explicitly set the `from` option to `undefined` to prevent
+      // sourcemap warnings which aren't relevant to this use case.
+      from: undefined,
+    })
+    .then((result) => {
+      // The transformed CSS, where URLs have been replaced.
+      return result.css;
+    })
+    .catch((err) => {
+      throw new Error(`Error processing the CSS: ${err}`);
+    });
+  return formattedCss;
+}
 
-  job.log(`parseHtml done`);
-  next();
+const urlRegex = /url\(['"]?(?!data:)([^'"]+)['"]?\)/g;
+
+function replaceResources(cb) {
+  return new Promise((resolve) => {
+    const plugin = () => {
+      return {
+        postcssPlugin: "postcss-replace-resources",
+        Once(root) {
+          root.walkAtRules("import", (rule) => {
+            const match = rule.params.match(urlRegex);
+            if (match) {
+              const oldUrl = match[1];
+              const newUrl = cb(oldUrl);
+              rule.params = `url(${newUrl})`;
+            }
+          });
+
+          root.walkDecls((decl) => {
+            let match;
+
+            decl.value = decl.value.replace(urlRegex, (fullMatch, oldUrl) => {
+              const newUrl = cb(oldUrl);
+              return `url(${newUrl})`;
+            });
+          });
+        },
+      };
+    };
+
+    plugin.postcss = true;
+
+    resolve({ plugin });
+  });
 }

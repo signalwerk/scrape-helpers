@@ -4,12 +4,6 @@ import { JobItem } from "./components/JobItem";
 import { JobItemSmall } from "./components/JobItemSmall";
 import "./App.css";
 
-// const requestURL = "https://www.libregraphicsmeeting.org/2008/LGM2008_%20LOGO.svg";
-// const requestURL = "https://libregraphicsmeeting.org/2015/call-for-participation";
-// const requestURL = "https://www.libregraphicsmeeting.org/2006/style.css";
-// const requestURL = "https://www.libregraphicsmeeting.org/2012/wp/wp-content/plugins/gravityforms/css/forms-ver=1.5.1.1.css";
-const requestURL = "https://www.libregraphicsmeeting.org/";
-
 const socket = io();
 
 const debounce = (fn, delay) => {
@@ -146,7 +140,6 @@ function App() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 type: "request",
-                data: { uri: requestURL },
               }),
             })
           }
@@ -161,7 +154,6 @@ function App() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 type: "write",
-                data: { uri: requestURL },
               }),
             })
           }
