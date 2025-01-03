@@ -1,8 +1,12 @@
 import fs from "fs";
 import path from "path";
+import { absoluteUrl } from "../utils/absoluteUrl.js";
+import { getRelativeURL } from "../utils/getRelativeURL.js";
 import { getExtensionOfMime } from "../utils/mime.js";
 import { UrlPatcher } from "../utils/UrlPatcher.js";
+import { writeFile } from "../utils/writeFile.js";
 import { getExtension, sameExtension, fixFilename } from "../utils/fsUtils.js";
+import { processElements } from "../utils/processElements.js";
 
 export async function writeData({ job, data, metadata }, next) {
   const baseDir = "./DATA/OUT";
@@ -145,48 +149,34 @@ export function urlToPath(uri, mime) {
   return result.join("");
 }
 
-export function urlToPathOLD(uri, mime) {
-  const mimeExt = getExtensionOfMime(mime);
+export async function rewriteHtml({ job, cache, getKey, events, $ }, next) {
+  job.log(`rewriteHtml start`);
 
-  const parsedUrl = new URL(uri);
-  let queryParams = new URLSearchParams(parsedUrl.search);
-  // Convert to array, sort, and reconstruct
-  let sortedQuery = new URLSearchParams(
-    [...queryParams.entries()].sort((a, b) => a[0].localeCompare(b[0])),
-  ).toString();
+  let baseUrl =
+    absoluteUrl($("base")?.attr("href") || "", job.data.uri) || job.data.uri;
 
-  const pathname = parsedUrl.pathname;
+  processElements({
+    $,
+    cb: (url) => {
+      const fullUrl = absoluteUrl(url, baseUrl);
+      if (!fullUrl) return;
 
-  const dirname = path.dirname(pathname);
-  const basename = path.basename(pathname);
+      const key = getKey(fullUrl);
+      if (cache.has(key)) {
+        return getRelativeURL(fullUrl, baseUrl, false, false);
+      }
 
-  const fsExt = getExtension(pathname);
-  const ext = mimeExt || fsExt;
-  const hasExt = basename.endsWith(`.${fsExt}`);
+      // const requestJobData = {
+      //   ...job.data,
+      //   uri: fullUrl,
+      //   _parent: job.id,
+      // };
 
-  let result = `${parsedUrl.protocol.replace(":", "")}/${parsedUrl.hostname}`;
+      // job.log(`Created request for resource: ${fullUrl}`);
+      // events?.emit("createRequestJob", requestJobData);
+    },
+  });
 
-  if (pathname.endsWith("/") && mimeExt === "html") {
-    return `${result}${pathname}index.html`;
-  }
-
-  let filename = null;
-
-  if (hasExt || sortedQuery) {
-    filename = basename;
-  } else {
-    filename = `${basename}.${ext}`;
-  }
-
-  if (sortedQuery) {
-    filename += `?${decodeURIComponent(sortedQuery)}.${ext}`;
-  }
-
-  if (dirname && dirname !== "/") {
-    result += `${dirname}`;
-  }
-
-  result += `/${fixFilename(filename)}`;
-
-  return result;
+  job.log(`parseHtml done`);
+  next();
 }
