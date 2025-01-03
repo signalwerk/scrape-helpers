@@ -105,7 +105,7 @@ export function getRelativeURL(url, base, reload = false, root, dotSlash) {
 
   if (!rel) {
     if (reload) {
-      rel = url.search || "?";
+      rel = url.search; // || "?";
       rel += url.hash;
     } else {
       rel = url.hash || "#";

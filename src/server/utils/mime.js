@@ -17,7 +17,7 @@ const mime2ext = {
 };
 
 export function getMimeWithoutEncoding(mime) {
-  return mime.split(";")?.[0];
+  return mime?.split(";")?.[0] || "";
 }
 
 export function getExtensionOfMime(mime) {

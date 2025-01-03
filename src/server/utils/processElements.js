@@ -65,16 +65,19 @@ export async function processElements({ $, cb }, next) {
 
       // Use splitOnComma flag from configuration
       const urls = splitOnComma
-        ? originalValue.split(",").map((part) => part.trim().split(/\s+/)[0])
-        : [originalValue];
+        ? originalValue.split(",").map((part) => {
+            const [url, ...descriptors] = part.trim().split(/\s+/);
+            return { url, descriptors: descriptors.join(" ") };
+          })
+        : [{ url: originalValue, descriptors: "" }];
 
       const newURLs = [];
 
-      urls.forEach((url) => {
+      urls.forEach(({ url, descriptors }) => {
         if (cb) {
           const newURL = cb(url);
           if (newURL) {
-            newURLs.push(newURL);
+            newURLs.push(descriptors ? `${newURL} ${descriptors}` : newURL);
           }
         }
       });

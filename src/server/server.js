@@ -11,6 +11,7 @@ export class WebServer {
     this.cache = options.cache;
     this.dataPatcher = options.dataPatcher;
     this.requestTracker = options.requestTracker;
+    this.writeTracker = options.writeTracker;
 
     // Initialize queues with custom settings
     this.queues = {
@@ -181,6 +182,7 @@ export class WebServer {
     this.app.post("/api/jobs/clear-history", (req, res) => {
       Object.values(this.queues).forEach((queue) => queue.clearHistory());
       this.requestTracker.clear();
+      this.writeTracker.clear();
       this.emitQueueStats();
       res.json({ success: true });
     });

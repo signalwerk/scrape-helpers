@@ -138,6 +138,9 @@ export class Queue {
   async failJob(job, error) {
     job.status = "failed";
     job.log(error.message);
+    if (error.stack) {
+      job.log(error.stack);
+    }
     job.finishedAt = new Date().toISOString();
     this.moveToHistory(job);
     this.events.emit("jobFailed", job);
