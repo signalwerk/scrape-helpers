@@ -66,7 +66,7 @@ describe("urlToPath", () => {
       "https://example.com/äöü/this_is_a_very_long_test_filename_designed_to_test_the_write_function_that_requires_handling_of_extremely_long_file_names_and_we_are_including_various_characters_numbers_and_more_just_to_fill_up_the_space_and_see_how_it_handles_extreme_cases_0123456789_abcdefghijklmnopqrstuvwxyz_äöü_&!=_end.html?q=test&page=1";
     const result = await urlToPath(job, "text/html");
     expect(result).toBe(
-      "https/example.com/äöü/this_is_a_very_long_test_filename_designed_to_test_the_write_function_that_requires_handling_of_extremely_long_file_names_and_we_are_including_various_characters_numbers_and_more_just_to_fill_up_the_space_and_see_how_it_handles_extreme_cases_0123456789_abcdefghijklmnopqrstuvwxyz_äöü_&!=_end.html?page=1&q=test.html",
+      "https/example.com/äöü/this_is_a_very_long_test_filename_designed_to_test_the_write_function_that_requires_handling_of_extremely_long_file_names_and_we_are_including_various_characters_numbers_and_more_just_to_fill_up_the_space_and_see_how_it_handles_extreme.html",
     );
   });
 

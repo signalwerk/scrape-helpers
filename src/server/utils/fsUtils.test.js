@@ -71,8 +71,8 @@ describe("fsUtils", () => {
     });
 
     it("should handle filenames only", () => {
-      const result = fixFilename("/file.jpg");
-      expect(result).toBe("/file.jpg");
+      expect(fixFilename("/file.jpg")).toBe("/file.jpg");
+      expect(fixFilename("file.jpg")).toBe("file.jpg");
     });
   });
 });

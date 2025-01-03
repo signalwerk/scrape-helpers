@@ -38,13 +38,21 @@ export function sameExtension(fsExt, mimeExt) {
 }
 
 export function fixFilename(pathname) {
+  if (!pathname) {
+    return pathname;
+  }
+  if (pathname.length < 240) {
+    return pathname;
+  }
+
   const dirname = path.dirname(pathname);
   const ext = path.extname(pathname);
   const basename = path.basename(pathname, ext);
 
-  console.log({ dirname, basename, ext });
-
-  const result = `${dirname}/${basename.slice(0, 240 - ext.length)}${ext}`;
+  const result = path.join(
+    dirname,
+    `${basename.slice(0, 240 - ext.length)}${ext}`,
+  );
 
   return result;
 }

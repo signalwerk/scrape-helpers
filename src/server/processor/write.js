@@ -115,18 +115,19 @@ export function urlToPath(uri, mime) {
     url.protocol.replace(":", ""),
     "/",
     decodeURIComponent(url.hostname),
-    decodeURIComponent(url.pathname),
   ];
+
+  const filename = [decodeURIComponent(url.pathname)];
 
   // handle the search params
   if (url.search) {
-    result.push(url.search);
+    filename.push(url.search);
 
     // If there is a search, we need to add the extension
     if (mimeExt) {
-      result.push(`.${mimeExt}`);
+      filename.push(`.${mimeExt}`);
     } else if (data.fsExt) {
-      result.push(`.${data.fsExt}`);
+      filename.push(`.${data.fsExt}`);
     }
   }
 
@@ -134,10 +135,12 @@ export function urlToPath(uri, mime) {
   if (!url.search) {
     if (!sameExtension(data.fsExt, mimeExt)) {
       if (mimeExt) {
-        result.push(`.${mimeExt}`);
+        filename.push(`.${mimeExt}`);
       }
     }
   }
+
+  result.push(fixFilename(filename.join("")));
 
   return result.join("");
 }
