@@ -14,10 +14,9 @@ import { processElements } from "../utils/processElements.js";
 export async function writeData({ job, data, metadata }, next) {
   const baseDir = "./DATA/OUT";
 
-  const fsNameOfUri = urlToPath(
-    job.data.uri,
-    metadata.headers["content-type"],
-  ).replace("file://", "/");
+  const fsNameOfUri = urlToPath(job.data.uri, metadata.headers["content-type"])
+    .replace("file://", "/")
+    .replace("%3F", "?");
   const filePath = path.join(baseDir, fsNameOfUri);
 
   await writeFile(filePath, data);
@@ -25,7 +24,7 @@ export async function writeData({ job, data, metadata }, next) {
   next();
 }
 
-export function rewriteOutput({ rewrite, getUrl }) {
+export function writeOutput({ rewrite, getUrl }) {
   return async ({ job, context }, next) => {
     const { data: dataOrignal, metadata } = context.cache.get(
       job.data.cache.key,
@@ -36,7 +35,7 @@ export function rewriteOutput({ rewrite, getUrl }) {
     const mime = job.data.mimeType;
 
     if (mime === "text/html") {
-      data = context.dataPatcher.patch(job.data.uri, data, (log) =>
+      data = context.dataPatcher.patch(job.data.uri, `${data}`, (log) =>
         job.log(log),
       );
 
@@ -68,7 +67,7 @@ export function rewriteOutput({ rewrite, getUrl }) {
     }
 
     if (mime === "text/css") {
-      data = context.dataPatcher.patch(job.data.uri, data, (log) =>
+      data = context.dataPatcher.patch(job.data.uri, `${data}`, (log) =>
         job.log(log),
       );
 
@@ -195,11 +194,26 @@ patcher
     },
     excludes: [/\/$/],
   })
+
+  .addRule({
+    // add search params to the pathname and fix file extension
+    transform: (url, data) => {
+      const imgExts = ["png", "jpeg", "gif", "svg"];
+
+      if ([imgExts].includes(data.mimeExt) || imgExts.includes(data.fsExt)) {
+        url.search = "";
+      }
+      return [url, data];
+    },
+  })
   .addRule({
     // add search params to the pathname and fix file extension
     transform: (url, data) => {
       if (url.search) {
-        url.pathname += url.search.replaceAll("?", "---");
+        url.pathname += url.search.replaceAll(
+          "?",
+          encodeURIComponent(encodeURIComponent("?")), // encode the question mark to %3F
+        );
         url.search = "";
 
         // If there is a search, we need to add the extension
