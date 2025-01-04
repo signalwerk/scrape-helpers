@@ -7,7 +7,7 @@ import { Server as SocketIOServer } from "socket.io";
 import { Queue } from "./queue.js";
 import { Cache } from "./utils/Cache.js";
 import { writeFile } from "./utils/writeFile.js";
-import { RequestTracker } from "./utils/RequestTracker.js";
+import { Tracker } from "./utils/Tracker.js";
 import { DataPatcher } from "./utils/DataPatcher.js";
 
 export class WebServer {
@@ -15,8 +15,8 @@ export class WebServer {
     // Initialize configurable components
     this.cache = options.cache || new Cache();
     this.dataPatcher = options.dataPatcher || new DataPatcher();
-    this.requestTracker = options.requestTracker || new RequestTracker();
-    this.writeTracker = options.writeTracker || new RequestTracker();
+    this.requestTracker = options.requestTracker || new Tracker();
+    this.writeTracker = options.writeTracker || new Tracker();
     this.urls = options.urls;
 
     // Initialize queues with custom settings

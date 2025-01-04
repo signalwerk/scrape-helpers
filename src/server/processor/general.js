@@ -1,13 +1,13 @@
-export function isAlreadyRequested({ tracker }) {
+export function isAlreadyProcessed({ tracker }) {
   return async ({ job, context }, next) => {
     const url = job.data.uri;
 
-    if (context[tracker].hasBeenRequested(url)) {
-      job.log(`URL ${url} has already been requested.`);
+    if (context[tracker].hasBeenProcessed(url)) {
+      job.log(`URL ${url} has already been Processed.`);
       return next(null, true);
     }
 
-    context[tracker].markAsRequested(url);
+    context[tracker].markAsProcessed(url);
     next();
   };
 }

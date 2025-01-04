@@ -1,3 +1,11 @@
+import { isAlreadyProcessed } from "./general.js";
+
+export function isAlreadyRequested() {
+  return isAlreadyProcessed({
+    tracker: "requestTracker",
+  });
+}
+
 function validatePattern({ job, allowed, disallowed, getValue, type }, next) {
   let value = null;
   try {

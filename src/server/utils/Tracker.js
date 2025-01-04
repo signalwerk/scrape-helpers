@@ -1,6 +1,6 @@
-export class RequestTracker {
+export class Tracker {
   constructor() {
-    this.requested = new Set();
+    this.keys = new Set();
   }
 
   // don't care about the query params-order or the hash
@@ -15,15 +15,15 @@ export class RequestTracker {
     return newUrl.toString();
   }
 
-  hasBeenRequested(url) {
-    return this.requested.has(this.makeUnique(url));
+  hasBeenProcessed(url) {
+    return this.keys.has(this.makeUnique(url));
   }
 
-  markAsRequested(url) {
-    this.requested.add(this.makeUnique(url));
+  markAsProcessed(url) {
+    this.keys.add(this.makeUnique(url));
   }
 
   clear() {
-    this.requested.clear();
+    this.keys.clear();
   }
 }

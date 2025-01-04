@@ -10,6 +10,13 @@ import { UrlPatcher } from "../utils/UrlPatcher.js";
 import { writeFile } from "../utils/writeFile.js";
 import { getExtension, sameExtension, fixFilename } from "../utils/fsUtils.js";
 import { processElements } from "../utils/processElements.js";
+import { isAlreadyProcessed } from "./general.js";
+
+export function isAlreadyWritten() {
+  return isAlreadyProcessed({
+    tracker: "writeTracker",
+  });
+}
 
 export async function writeData({ job, data, metadata }, next) {
   const baseDir = "./DATA/OUT";
