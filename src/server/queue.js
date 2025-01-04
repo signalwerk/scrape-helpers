@@ -37,8 +37,8 @@ export class Queue {
   }
 
   // Register a new processor
-  use(processor) {
-    this.processors.push(processor);
+  use({ processor, context }) {
+    this.processors.push({ processor, context });
     return this;
   }
 
@@ -98,12 +98,12 @@ export class Queue {
         const processor = this.processors[index];
         index++;
 
-        if (!processor) {
+        if (!(processor && processor.processor)) {
           return this.completeJob(job);
         }
 
         try {
-          await processor(job, next);
+          await processor.processor({ job, context: processor.context }, next);
         } catch (err) {
           await this.failJob(job, err);
         }

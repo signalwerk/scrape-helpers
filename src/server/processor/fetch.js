@@ -1,166 +1,171 @@
 import axios from "axios";
 
-export async function addFetchJob({ job, events }, next) {
-  try {
-    // Add validation logic here for the URI or other request parameters
-    if (!job.data.uri) {
-      throw new Error("No URI provided");
+export function addFetchJob() {
+  return async ({ job, context }, next) => {
+    try {
+      // Add validation logic here for the URI or other request parameters
+      if (!job.data.uri) {
+        throw new Error("No URI provided");
+      }
+
+      // Create a fetch job with the validated data
+      const fetchJobData = {
+        ...job.data,
+        _parent: job.id,
+      };
+
+      context.events?.emit("createFetchJob", fetchJobData);
+      job.log(`Created fetch job`);
+
+      next();
+    } catch (error) {
+      throw new Error(`Error: ${error.message}`);
     }
-
-    // Create a fetch job with the validated data
-    const fetchJobData = {
-      ...job.data,
-      _parent: job.id,
-    };
-
-    // Emit event to create new fetch job
-    events?.emit("createFetchJob", fetchJobData);
-
-    job.log(`Created fetch job`);
-    next();
-  } catch (error) {
-    throw new Error(`Error: ${error.message}`);
-  }
+  };
 }
 
-export async function fetchHttp({ job, cache, events }, next) {
-  let uri = job.data.uri;
-  let isCached = job.data.cache.status === "cached";
-  let redirects = job.data.redirects || 0;
+export function fetchHttp() {
+  return async ({ job, context }, next) => {
+    let uri = job.data.uri;
+    let isCached = job.data.cache.status === "cached";
+    let redirects = job.data.redirects || 0;
 
-  if (isCached) {
-    job.log(`skip fetch, file already in cache`);
-    return next();
-  }
+    if (isCached) {
+      job.log(`skip fetch, file already in cache`);
+      return next();
+    }
 
-  if (redirects > 8) {
-    throw new Error("Too many redirects");
-  }
+    if (redirects > 8) {
+      throw new Error("Too many redirects");
+    }
 
-  let response;
+    let response;
 
-  job.data.fetch = {
-    type: "http",
-  };
+    job.data.fetch = {
+      type: "http",
+    };
 
-  try {
-    response = await axios.get(uri, {
-      responseType: "arraybuffer",
-      maxRedirects: 0, // Prevent automatic redirection
-    });
-  } catch (axiosError) {
-    if (
-      axiosError.response &&
-      axiosError.response.status >= 300 &&
-      axiosError.response.status < 400
-    ) {
-      // Handle redirect manually
-      const newUri = axiosError.response.headers.location;
-      // Save metadata to a JSON file
+    try {
+      response = await axios.get(uri, {
+        responseType: "arraybuffer",
+        maxRedirects: 0, // Prevent automatic redirection
+      });
+    } catch (axiosError) {
+      if (
+        axiosError.response &&
+        axiosError.response.status >= 300 &&
+        axiosError.response.status < 400
+      ) {
+        // Handle redirect manually
+        const newUri = axiosError.response.headers.location;
+        // Save metadata to a JSON file
+        const metadata = {
+          headers: axiosError.response.headers,
+          status: axiosError.response.status,
+          uri: uri,
+          redirected: newUri,
+        };
+
+        await context.cache.set(job.data.cache.key, { metadata });
+        job.data.cache.status = "cached";
+        job.log(`saved metadata to cache`);
+
+        // Create a new job for the redirected URI
+        const requestJobData = {
+          ...job.data,
+          uri: newUri,
+          redirects: redirects + 1,
+          _parent: job.id,
+        };
+
+        context.events?.emit("createRequestJob", requestJobData);
+        job.log(`Created request job – Redirected to new URI: ${newUri}`);
+
+        return next(null, true);
+      }
+      // Add error logging
+      job.error = axiosError.response?.status;
+
+      // Save error to cache
       const metadata = {
         headers: axiosError.response.headers,
         status: axiosError.response.status,
         uri: uri,
-        redirected: newUri,
+        error: axiosError.response?.status,
       };
+      await context.cache.set(job.data.cache.key, { metadata });
 
-      await cache.set(job.data.cache.key, { metadata });
       job.data.cache.status = "cached";
-      job.log(`saved metadata to cache`);
+      job.log(`saved error to cache`);
 
-      // Create a new job for the redirected URI
-      const requestJobData = {
-        ...job.data,
-        uri: newUri,
-        redirects: redirects + 1,
-        _parent: job.id,
-      };
-      job.log(`Created request job – Redirected to new URI: ${newUri}`);
-      events?.emit("createRequestJob", requestJobData);
-      return next(null, true);
+      throw new Error(
+        `Request failed. Status: ${
+          axiosError.response?.status || "unknown"
+        } Text: ${axiosError.response?.statusText || "unknown"} Message: ${
+          axiosError.message || "unknown"
+        }`,
+      );
     }
-    // Add error logging
-    job.error = axiosError.response?.status;
 
-    // Save error to cache
+    // Save to cache
     const metadata = {
-      headers: axiosError.response.headers,
-      status: axiosError.response.status,
+      headers: response.headers,
+      status: response.status,
       uri: uri,
-      error: axiosError.response?.status,
     };
-    await cache.set(job.data.cache.key, { metadata });
 
+    await context.cache.set(job.data.cache.key, {
+      metadata,
+      data: response.data,
+    });
     job.data.cache.status = "cached";
-    job.log(`saved error to cache`);
+    job.log(`saved data and metadata to cache`);
 
-    throw new Error(
-      `Request failed. Status: ${
-        axiosError.response?.status || "unknown"
-      } Text: ${axiosError.response?.statusText || "unknown"} Message: ${
-        axiosError.message || "unknown"
-      }`,
-    );
-  }
-
-  // Save to cache
-  const metadata = {
-    headers: response.headers,
-    status: response.status,
-    uri: uri,
+    next();
   };
-
-  await cache.set(job.data.cache.key, { metadata, data: response.data });
-  job.data.cache.status = "cached";
-  job.log(`saved data and metadata to cache`);
-
-  // Add parse job here only after successful fetch
-  const parseJobData = {
-    ...job.data,
-    _parent: job.id,
-    cache: job.data.cache,
-  };
-  next();
 }
 
-export function isCached({ job, events, cache, getKey }, next) {
-  const key = getKey(job);
+export function isCached() {
+  return async ({ job, context }, next) => {
+    const key = job.data.uri;
 
-  if (cache.has(key)) {
-    job.log(`File already in cache`);
+    if (context.cache.has(key)) {
+      job.log(`File already in cache`);
 
-    const metadata = cache.getMetadata(key);
-    if (metadata.redirected) {
-      job.log(`Cache has redirect, follow redirecting`);
-      const newUri = metadata.redirected;
+      const metadata = context.cache.getMetadata(key);
+      if (metadata.redirected) {
+        job.log(`Cache has redirect, follow redirecting`);
+        const newUri = metadata.redirected;
 
-      // Create a new job for the redirected URI
-      const requestJobData = {
-        ...job.data,
-        uri: newUri,
-        _parent: job.id,
-      };
-      job.log(`Created request job – Redirected to new URI: ${newUri}`);
-      events?.emit("createRequestJob", requestJobData);
+        // Create a new job for the redirected URI
+        const requestJobData = {
+          ...job.data,
+          uri: newUri,
+          _parent: job.id,
+        };
 
-      return next(null, true);
-    } else if (metadata.error) {
-      job.error = metadata.error;
-      throw new Error(
-        `Job is cached but has error: ${job.error} no need proceed`,
-      );
+        context.events?.emit("createRequestJob", requestJobData);
+        job.log(`Created request job – Redirected to new URI: ${newUri}`);
+
+        return next(null, true);
+      } else if (metadata.error) {
+        job.error = metadata.error;
+        throw new Error(
+          `Job is cached but has error: ${job.error} no need proceed`,
+        );
+      } else {
+        job.data.cache = {
+          status: "cached",
+          key,
+        };
+      }
     } else {
+      job.log(`File not in cache`);
       job.data.cache = {
-        status: "cached",
+        status: "not-cached",
         key,
       };
     }
-  } else {
-    job.log(`File not in cache`);
-    job.data.cache = {
-      status: "not-cached",
-      key,
-    };
-  }
-  return next();
+    return next();
+  };
 }

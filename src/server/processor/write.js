@@ -1,9 +1,11 @@
 import fs from "fs";
 import path from "path";
 import postcss from "postcss";
+import prettier from "prettier";
+import * as cheerio from "cheerio";
 import { absoluteUrl } from "../utils/absoluteUrl.js";
 import { getRelativeURL } from "../utils/getRelativeURL.js";
-import { getExtensionOfMime, getMimeWithoutEncoding } from "../utils/mime.js";
+import { getExtensionOfMime } from "../utils/mime.js";
 import { UrlPatcher } from "../utils/UrlPatcher.js";
 import { writeFile } from "../utils/writeFile.js";
 import { getExtension, sameExtension, fixFilename } from "../utils/fsUtils.js";
@@ -23,48 +25,126 @@ export async function writeData({ job, data, metadata }, next) {
   next();
 }
 
-export function handleRedirected({ job, events, cache, getKey }, next) {
-  const key = getKey(job);
+export function rewriteOutput({ rewrite, getUrl }) {
+  return async ({ job, context }, next) => {
+    const { data: dataOrignal, metadata } = context.cache.get(
+      job.data.cache.key,
+    );
 
-  if (cache.has(key)) {
-    job.log(`File already in cache`);
+    let data = dataOrignal;
 
-    const metadata = cache.getMetadata(key);
-    if (metadata.redirected) {
-      job.log(`Cache has redirect, follow redirecting`);
-      const newUri = metadata.redirected;
+    const mime = job.data.mimeType;
 
-      // Create a new job for the redirected URI
-      const writeJobData = {
-        ...job.data,
-        uri: newUri,
-        _parent: job.id,
-      };
-      job.log(`Created write job – Redirected to new URI: ${newUri}`);
-      events?.emit("createWriteJob", writeJobData);
-
-      return next(null, true);
-    } else if (metadata.error) {
-      job.error = metadata.error;
-      throw new Error(
-        `Job is cached but has error: ${job.error} no need proceed`,
+    if (mime === "text/html") {
+      data = context.dataPatcher.patch(job.data.uri, data, (log) =>
+        job.log(log),
       );
+
+      const $ = cheerio.load(data);
+      if (rewrite && rewrite[mime]) {
+        rewrite[mime]($);
+      }
+
+      await rewriteHtml(
+        {
+          job,
+          mime,
+          cache: context.cache,
+          getUrl,
+          createWriteJob: (writeJobData) =>
+            context.events?.emit("createWriteJob", writeJobData),
+          $,
+        },
+        next,
+      );
+
+      data = $.html();
+
+      try {
+        data = await prettier.format(data, { parser: "html" });
+      } catch (error) {
+        throw new Error(`Error formatting HTML: ${error}`);
+      }
+    }
+
+    if (mime === "text/css") {
+      data = context.dataPatcher.patch(job.data.uri, data, (log) =>
+        job.log(log),
+      );
+
+      data = await rewriteCss({
+        content: data,
+        job,
+        mime,
+        cache: context.cache,
+        getUrl,
+        createWriteJob: (writeJobData) =>
+          context.events?.emit("createWriteJob", writeJobData),
+      });
+
+      try {
+        data = await prettier.format(`${data}`, { parser: "css" });
+      } catch (error) {
+        throw new Error(`Error formatting CSS: ${error}`);
+      }
+    }
+
+    await writeData(
+      {
+        job,
+        data,
+        metadata,
+      },
+      next,
+    );
+  };
+}
+
+export function handleRedirected() {
+  return async ({ job, context }, next) => {
+    const key = job.data.uri;
+
+    if (context.cache.has(key)) {
+      job.log(`File already in cache`);
+
+      const metadata = context.cache.getMetadata(key);
+      if (metadata.redirected) {
+        job.log(`Cache has redirect, follow redirecting`);
+        const newUri = metadata.redirected;
+
+        // Create a new job for the redirected URI
+        const writeJobData = {
+          ...job.data,
+          uri: newUri,
+          _parent: job.id,
+        };
+
+        context.events?.emit("createWriteJob", writeJobData);
+        job.log(`Created write job – Redirected to new URI: ${newUri}`);
+
+        return next(null, true);
+      } else if (metadata.error) {
+        job.error = metadata.error;
+        throw new Error(
+          `Job is cached but has error: ${job.error} no need proceed`,
+        );
+      } else {
+        job.data.cache = {
+          status: "cached",
+          key,
+        };
+      }
     } else {
       job.data.cache = {
-        status: "cached",
+        status: "not-cached",
         key,
       };
+      // throw new Error(`File not in cache`);
+      job.log(`File not in cache`);
+      return next(null, true);
     }
-  } else {
-    job.data.cache = {
-      status: "not-cached",
-      key,
-    };
-    // throw new Error(`File not in cache`);
-    job.log(`File not in cache`);
-    return next(null, true);
-  }
-  return next();
+    return next();
+  };
 }
 
 const patcher = new UrlPatcher();
@@ -157,7 +237,7 @@ export function urlToPath(uri, mime) {
 }
 
 export async function rewriteHtml(
-  { job, mime, cache, getKey, getUrl, events, $ },
+  { job, mime, cache, createWriteJob, getUrl, $ },
   next,
 ) {
   job.log(`rewriteHtml start`);
@@ -179,12 +259,15 @@ export async function rewriteHtml(
         _parent: job.id,
       };
 
-      job.log(`Created write job for resource: ${fullUrl}`);
-      events?.emit("createWriteJob", writeJobData);
+      if (createWriteJob) {
+        createWriteJob(writeJobData);
+        job.log(`Created write job for resource: ${fullUrl}`);
+      } else {
+        throw new Error("No createWriteJob function provided");
+      }
 
-      const key = getKey(fullUrl);
-      if (cache.has(key)) {
-        const metadata = cache.getMetadata(key);
+      if (cache.has(fullUrl)) {
+        const metadata = cache.getMetadata(fullUrl);
 
         let fileAbsoluteUrl = urlToPath(
           fullUrl,
@@ -198,7 +281,7 @@ export async function rewriteHtml(
         job.log(`rewrite ${fullUrl} to ${patchedUrl}`);
 
         return patchedUrl;
-      } 
+      }
     },
   });
 
@@ -207,7 +290,7 @@ export async function rewriteHtml(
 }
 
 export async function rewriteCss(
-  { content, job, mime, cache, getKey, getUrl, events },
+  { content, job, mime, cache, createWriteJob, getUrl },
   next,
 ) {
   job.log(`rewriteCss start`);
@@ -228,13 +311,16 @@ export async function rewriteCss(
         _parent: job.id,
       };
 
-      job.log(`Created write job for resource: ${fullUrl}`);
-      events?.emit("createWriteJob", writeJobData);
+      if (createWriteJob) {
+        createWriteJob(writeJobData);
+        job.log(`Created write job for resource: ${fullUrl}`);
+      } else {
+        throw new Error("No createWriteJob function provided");
+      }
 
-      const key = getKey(fullUrl);
-      if (cache.has(key)) {
+      if (cache.has(fullUrl)) {
         // urlToPath(uri, mime)
-        const metadata = cache.getMetadata(key);
+        const metadata = cache.getMetadata(fullUrl);
 
         let fileAbsoluteUrl = urlToPath(
           fullUrl,

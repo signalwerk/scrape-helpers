@@ -1,17 +1,22 @@
 // server.js
+import path from "path";
 import { EventEmitter } from "events";
 import express from "express";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { Queue } from "./queue.js";
+import { Cache } from "./utils/Cache.js";
+import { writeFile } from "./utils/writeFile.js";
+import { RequestTracker } from "./utils/RequestTracker.js";
+import { DataPatcher } from "./utils/DataPatcher.js";
 
 export class WebServer {
   constructor(options = {}) {
     // Initialize configurable components
-    this.cache = options.cache;
-    this.dataPatcher = options.dataPatcher;
-    this.requestTracker = options.requestTracker;
-    this.writeTracker = options.writeTracker;
+    this.cache = options.cache || new Cache();
+    this.dataPatcher = options.dataPatcher || new DataPatcher();
+    this.requestTracker = options.requestTracker || new RequestTracker();
+    this.writeTracker = options.writeTracker || new RequestTracker();
     this.urls = options.urls;
 
     // Initialize queues with custom settings
@@ -20,7 +25,7 @@ export class WebServer {
         maxConcurrent: options.requestConcurrency || 100,
       }),
       fetch: new Queue("fetch", {
-        maxConcurrent: options.fetchConcurrency || 10,
+        maxConcurrent: options.fetchConcurrency || 20,
       }),
       parse: new Queue("parse", {
         maxConcurrent: options.parseConcurrency || 100,
@@ -43,33 +48,37 @@ export class WebServer {
     this.setupEventHandlers();
     this.setupRoutes();
     this.setupSocketHandlers();
+
+    return this;
   }
 
   // Configure queue processors
   configureQueues(processors) {
     if (processors.request) {
       processors.request.forEach((processor) => {
-        this.queues.request.use(processor);
+        this.queues.request.use({ processor, context: this });
       });
     }
 
     if (processors.fetch) {
       processors.fetch.forEach((processor) => {
-        this.queues.fetch.use(processor);
+        this.queues.fetch.use({ processor, context: this });
       });
     }
 
     if (processors.parse) {
       processors.parse.forEach((processor) => {
-        this.queues.parse.use(processor);
+        this.queues.parse.use({ processor, context: this });
       });
     }
 
     if (processors.write) {
       processors.write.forEach((processor) => {
-        this.queues.write.use(processor);
+        this.queues.write.use({ processor, context: this });
       });
     }
+
+    return this;
   }
 
   setupEventHandlers() {
@@ -164,6 +173,25 @@ export class WebServer {
       } else {
         res.status(404).json({ error: "Job not found" });
       }
+    });
+
+    // write job history
+    this.app.post("/api/history/write", async (req, res) => {
+      const { type } = req.body;
+      const data = {
+        request: this.queues.request.history,
+        fetch: this.queues.fetch.history,
+        parse: this.queues.parse.history,
+        write: this.queues.write.history,
+      };
+
+      const baseDir = "./DATA/SOURCE";
+
+      const filePath = path.join(baseDir, "history.json");
+
+      await writeFile(filePath, JSON.stringify(data, null, 2));
+
+      res.json({ success: true });
     });
 
     // Add job endpoint

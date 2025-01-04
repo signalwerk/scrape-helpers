@@ -144,7 +144,7 @@ function App() {
             })
           }
         >
-          Add Test Request Job
+          Download to Cache
         </button>
         <button
           className="button"
@@ -158,7 +158,21 @@ function App() {
             })
           }
         >
-          Write out
+          Write from Cache to Output
+        </button>
+        <button
+          className="button"
+          onClick={() =>
+            fetch("/api/history/write", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                type: "all",
+              }),
+            })
+          }
+        >
+          Write Job History
         </button>
       </div>
 

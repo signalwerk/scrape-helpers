@@ -33,26 +33,30 @@ function validatePattern({ job, allowed, disallowed, getValue, type }, next) {
   next(null, true);
 }
 
-export function isPathValid(params, next) {
-  return validatePattern(
-    {
-      ...params,
-      getValue: (url) => url.pathname + url.search,
-      type: "Path",
-    },
-    next,
-  );
+export function isPathValid(params) {
+  return async ({ job, context }, next) => {
+    return await validatePattern(
+      {
+        ...params,
+        job,
+        getValue: (url) => url.pathname + url.search,
+        type: "Path",
+      },
+      next,
+    );
+  };
 }
 
-export function isDomainValid(params, next) {
-  return validatePattern(
-    {
-      ...params,
-      getValue: (url) => url.hostname,
-      type: "Domain",
-    },
-    next,
-  );
+export function isDomainValid(params) {
+  return async ({ job, context }, next) => {
+    return await validatePattern(
+      {
+        ...params,
+        job,
+        getValue: (url) => url.hostname,
+        type: "Domain",
+      },
+      next,
+    );
+  };
 }
-
-
