@@ -1,7 +1,6 @@
 import { jest } from "@jest/globals";
 
-import { isPathValid, isDomainValid } from "./request";
-import { isAlreadyRequested } from "./general";
+import { isAlreadyProcessed } from "./general";
 
 describe("Request Validation", () => {
   // Common test setup
@@ -15,42 +14,36 @@ describe("Request Validation", () => {
     jest.clearAllMocks();
   });
 
-  describe("isAlreadyRequested", () => {
-    const mockRequestTracker = {
-      hasBeenRequested: jest.fn(),
-      markAsRequested: jest.fn(),
+  describe("isAlreadyProcessed", () => {
+    const mockTracker = {
+      hasBeenProcessed: jest.fn(),
+      markAsProcessed: jest.fn(),
     };
 
-    it("should allow new requests", () => {
-      mockRequestTracker.hasBeenRequested.mockReturnValue(false);
+    it("should allow new requests", async () => {
+      mockTracker.hasBeenProcessed.mockReturnValue(false);
 
-      const params = {
-        job: mockJob,
-        tracker: mockRequestTracker,
-        getKey: (job) => job.data.uri,
-      };
-
-      isAlreadyRequested(params, mockNext);
+      const middleware = isAlreadyProcessed({ tracker: 'trackerKey' });
+      const context = { trackerKey: mockTracker };
+      
+      await middleware({ job: mockJob, context }, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith();
-      expect(mockRequestTracker.markAsRequested).toHaveBeenCalledWith(
+      expect(mockTracker.markAsProcessed).toHaveBeenCalledWith(
         mockJob.data.uri,
       );
     });
 
-    it("should reject duplicate requests", () => {
-      mockRequestTracker.hasBeenRequested.mockReturnValue(true);
+    it("should reject duplicate requests", async () => {
+      mockTracker.hasBeenProcessed.mockReturnValue(true);
 
-      const params = {
-        job: mockJob,
-        tracker: mockRequestTracker,
-        getKey: (job) => job.data.uri,
-      };
-
-      isAlreadyRequested(params, mockNext);
+      const middleware = isAlreadyProcessed({ tracker: 'trackerKey' });
+      const context = { trackerKey: mockTracker };
+      
+      await middleware({ job: mockJob, context }, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(null, true);
-      expect(mockRequestTracker.markAsRequested).not.toHaveBeenCalled();
+      expect(mockTracker.markAsProcessed).not.toHaveBeenCalled();
     });
   });
 });

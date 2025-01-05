@@ -13,8 +13,6 @@ describe("urlToPath", () => {
     expect(result).toBe("file://example.com/äöü/äöü.html");
   });
 
-
-
   test("handles URL ending with slash", async () => {
     const job = "https://example.com/folder/";
     const result = await urlToPath(job, "text/html");
@@ -36,13 +34,13 @@ describe("urlToPath", () => {
   test("handles query parameters", async () => {
     const job = "https://example.com/search?q=test&page=1";
     const result = await urlToPath(job, "text/html");
-    expect(result).toBe("file://example.com/search---page=1&q=test.html");
+    expect(result).toBe("file://example.com/search%3Fpage=1&q=test.html");
   });
 
   test("handles query parameters with fsExt ending", async () => {
     const job = "https://example.com/search.html?q=test&page=1";
     const result = await urlToPath(job, "text/html");
-    expect(result).toBe("file://example.com/search.html---page=1&q=test.html");
+    expect(result).toBe("file://example.com/search.html%3Fpage=1&q=test.html");
   });
 
   test("handles equivalent extensions (jpg)", async () => {

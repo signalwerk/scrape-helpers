@@ -1,7 +1,6 @@
 import { jest } from "@jest/globals";
 
 import { isPathValid, isDomainValid } from "./request";
-import { isAlreadyRequested } from "./general";
 
 describe("Request Validation", () => {
   // Common test setup
@@ -16,61 +15,62 @@ describe("Request Validation", () => {
   });
 
   describe("isPathValid", () => {
-    it("should allow paths that match allowed patterns", () => {
+    it("should allow paths that match allowed patterns", async () => {
       const params = {
-        job: mockJob,
         allowed: [/^\/path/, "/path?query=1"],
       };
 
-      isPathValid(params, mockNext);
+      const middleware = isPathValid(params);
+      await middleware({ job: mockJob }, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith();
     });
 
-    it("should reject paths that match disallowed patterns", () => {
+    it("should reject paths that match disallowed patterns", async () => {
       const params = {
-        job: mockJob,
         allowed: [/^\/path/],
         disallowed: [/query=1$/],
       };
 
-      isPathValid(params, mockNext);
+      const middleware = isPathValid(params);
+      await middleware({ job: mockJob }, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(null, true);
     });
 
-    it("should throw error for invalid URLs", () => {
+    it("should throw error for invalid URLs", async () => {
       const params = {
-        job: { data: { uri: "invalid-url" } },
         allowed: [],
       };
+      const invalidJob = { data: { uri: "invalid-url" } };
 
-      expect(() => isPathValid(params, mockNext)).toThrow(
+      const middleware = isPathValid(params);
+      await expect(middleware({ job: invalidJob }, mockNext)).rejects.toThrow(
         "Error occurred while parsing the URL.",
       );
     });
   });
 
   describe("isDomainValid", () => {
-    it("should allow domains that match allowed patterns", () => {
+    it("should allow domains that match allowed patterns", async () => {
       const params = {
-        job: mockJob,
         allowed: ["example.com", /\.com$/],
       };
 
-      isDomainValid(params, mockNext);
+      const middleware = isDomainValid(params);
+      await middleware({ job: mockJob }, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith();
     });
 
-    it("should reject domains that match disallowed patterns", () => {
+    it("should reject domains that match disallowed patterns", async () => {
       const params = {
-        job: mockJob,
         allowed: [/.*/],
         disallowed: ["example.com"],
       };
 
-      isDomainValid(params, mockNext);
+      const middleware = isDomainValid(params);
+      await middleware({ job: mockJob }, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(null, true);
     });
