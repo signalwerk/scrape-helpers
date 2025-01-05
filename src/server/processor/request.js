@@ -6,7 +6,10 @@ export function isAlreadyRequested() {
   });
 }
 
-function validatePattern({ job, allowed, disallowed, getValue, type }, next) {
+function validatePattern(
+  { job, allowed, disallowed, includes, getValue, type },
+  next,
+) {
   let value = null;
   try {
     const parsedUrl = new URL(job.data.uri);
@@ -15,25 +18,40 @@ function validatePattern({ job, allowed, disallowed, getValue, type }, next) {
     throw new Error(`Error occurred while parsing the URL.`);
   }
 
-  // Check disallowed patterns
-  if (
-    disallowed?.some((pattern) =>
-      pattern instanceof RegExp ? pattern.test(value) : pattern === value,
-    )
-  ) {
-    job.log(`${type} ${value} is disallowed.`);
+  const isMatch = (pattern) =>
+    pattern instanceof RegExp ? pattern.test(value) : pattern === value;
+
+  const isIncluded = includes && includes.length > 0 && includes.some(isMatch);
+
+  if (isIncluded) {
+    job.log(`${type} ${value} is explicitly included.`);
+    return next();
+  }
+
+  // Check if explicitly disallowed
+  const hasDisallowed = disallowed && disallowed.length > 0;
+  const isDisallowed = hasDisallowed && disallowed.some(isMatch);
+
+  if (isDisallowed) {
+    job.log(
+      `${type} ${value} is explicitly allowed (despite being disallowed).`,
+    );
     return next(null, true);
   }
 
-  // Check allowed patterns
-  if (
-    !allowed ||
-    allowed.length === 0 ||
-    allowed.some((pattern) =>
-      pattern instanceof RegExp ? pattern.test(value) : pattern === value,
-    )
-  ) {
-    job.log(`${type} ${value} is allowed.`);
+  // Check if explicitly allowed
+  const hasAllowed = allowed && allowed.length > 0;
+  const isAllowed = hasAllowed && allowed.some(isMatch);
+
+  if (isAllowed) {
+    job.log(`${type} ${value} is explicitly allowed.`);
+    return next();
+  }
+
+  if (hasDisallowed && !isDisallowed && !hasAllowed) {
+    job.log(
+      `${type} ${value} passed disallowed check and has no allowed check.`,
+    );
     return next();
   }
 

@@ -49,6 +49,22 @@ describe("Request Validation", () => {
         "Error occurred while parsing the URL.",
       );
     });
+
+    it("should allow paths that match includes patterns, regardless of allowed/disallowed", async () => {
+      const params = {
+        allowed: [/^\/other/],
+        disallowed: [/query=1$/],
+        includes: ["/path?query=1"],
+      };
+
+      const middleware = isPathValid(params);
+      await middleware({ job: mockJob }, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith();
+      expect(mockJob.log).toHaveBeenCalledWith(
+        "Path /path?query=1 is explicitly included.",
+      );
+    });
   });
 
   describe("isDomainValid", () => {
@@ -73,6 +89,44 @@ describe("Request Validation", () => {
       await middleware({ job: mockJob }, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(null, true);
+    });
+
+    it("should reject if dissalow matches", async () => {
+      const params = {
+        disallowed: ["example.com"],
+      };
+
+      const middleware = isDomainValid(params);
+      await middleware({ job: mockJob }, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(null, true);
+    });
+
+    it("should allow if dissalow only matches", async () => {
+      const params = {
+        disallowed: ["xyz.com"],
+      };
+
+      const middleware = isDomainValid(params);
+      await middleware({ job: mockJob }, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith();
+    });
+
+    it("should allow domains that match includes patterns, regardless of allowed/disallowed", async () => {
+      const params = {
+        allowed: [/\.org$/],
+        disallowed: [/\.com$/],
+        includes: ["example.com"],
+      };
+
+      const middleware = isDomainValid(params);
+      await middleware({ job: mockJob }, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith();
+      expect(mockJob.log).toHaveBeenCalledWith(
+        "Domain example.com is explicitly included.",
+      );
     });
   });
 });
