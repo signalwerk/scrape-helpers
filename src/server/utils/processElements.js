@@ -78,6 +78,8 @@ export async function processElements({ $, cb }, next) {
           const newURL = cb(url);
           if (newURL) {
             newURLs.push(descriptors ? `${newURL} ${descriptors}` : newURL);
+          } else {
+            newURLs.push(descriptors ? `${url} ${descriptors}` : url);
           }
         }
       });
