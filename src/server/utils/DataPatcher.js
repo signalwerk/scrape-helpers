@@ -26,6 +26,11 @@ class DataPatcher {
    * @private
    */
   _categorizePatterns(patterns) {
+    // Handle case when patterns is not an array
+    if (!Array.isArray(patterns)) {
+      patterns = [patterns];
+    }
+
     return patterns.reduce(
       (acc, p) => {
         if (typeof p === "string") {

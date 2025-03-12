@@ -214,12 +214,26 @@ export class Queue {
     }
 
     if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (job) =>
-          job.id.toLowerCase().includes(term) ||
-          JSON.stringify(job.data).toLowerCase().includes(term),
-      );
+      const isExclude = searchTerm.startsWith("!");
+      const term = (
+        isExclude ? searchTerm.substring(1) : searchTerm
+      ).toLowerCase();
+
+      if (isExclude) {
+        // Exclude jobs that match the term
+        filtered = filtered.filter(
+          (job) =>
+            !job.id.toLowerCase().includes(term) &&
+            !JSON.stringify(job.data).toLowerCase().includes(term),
+        );
+      } else {
+        // Include jobs that match the term
+        filtered = filtered.filter(
+          (job) =>
+            job.id.toLowerCase().includes(term) ||
+            JSON.stringify(job.data).toLowerCase().includes(term),
+        );
+      }
     }
 
     return {

@@ -108,7 +108,7 @@ export async function parseCss({ job, events, data }, next) {
     await postcss([plugin])
       .process(data, { from: undefined })
       .then(() => {
-        // Process @import rules
+        // Process @import rules  
         resources.imports.forEach((originalUrl) => {
           const fullUrl = absoluteUrl(originalUrl, job.data.uri);
           if (!fullUrl) return;

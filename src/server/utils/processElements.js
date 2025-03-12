@@ -46,7 +46,14 @@ export async function processElements({ $, cb }, next) {
     // Forms
     // { selector: "form", attribute: "action" },
     // Meta tags
-    { selector: "meta[http-equiv=refresh]", attribute: "content" },
+    {
+      selector: "meta[http-equiv=refresh]",
+      attribute: "content",
+      process: (value) => {
+        const match = value.match(/url=([^;]+)/i);
+        return match ? match[1] : value;
+      },
+    },
     { selector: "meta[property='og:image']", attribute: "content" },
     { selector: "meta[property='og:url']", attribute: "content" },
     { selector: "meta[property='og:audio']", attribute: "content" },
@@ -57,36 +64,43 @@ export async function processElements({ $, cb }, next) {
     { selector: "meta[itemprop='image']", attribute: "content" },
   ];
 
-  configurations.forEach(({ selector, attribute, splitOnComma = false }) => {
-    $(selector).each((index, element) => {
-      let originalValue = $(element).attr(attribute);
+  configurations.forEach(
+    ({ selector, attribute, splitOnComma = false, process }) => {
+      $(selector).each((index, element) => {
+        let originalValue = $(element).attr(attribute);
 
-      if (!originalValue) return;
+        if (!originalValue) return;
 
-      // Use splitOnComma flag from configuration
-      const urls = splitOnComma
-        ? originalValue.split(",").map((part) => {
-            const [url, ...descriptors] = part.trim().split(/\s+/);
-            return { url, descriptors: descriptors.join(" ") };
-          })
-        : [{ url: originalValue, descriptors: "" }];
+        // Process the value if a processing function is provided
+        if (process) {
+          originalValue = process(originalValue);
+        }
 
-      const newURLs = [];
+        // Use splitOnComma flag from configuration
+        const urls = splitOnComma
+          ? originalValue.split(",").map((part) => {
+              const [url, ...descriptors] = part.trim().split(/\s+/);
+              return { url, descriptors: descriptors.join(" ") };
+            })
+          : [{ url: originalValue, descriptors: "" }];
 
-      urls.forEach(({ url, descriptors }) => {
-        if (cb) {
-          const newURL = cb(url);
-          if (newURL) {
-            newURLs.push(descriptors ? `${newURL} ${descriptors}` : newURL);
-          } else {
-            newURLs.push(descriptors ? `${url} ${descriptors}` : url);
+        const newURLs = [];
+
+        urls.forEach(({ url, descriptors }) => {
+          if (cb) {
+            const newURL = cb(url);
+            if (newURL) {
+              newURLs.push(descriptors ? `${newURL} ${descriptors}` : newURL);
+            } else {
+              newURLs.push(descriptors ? `${url} ${descriptors}` : url);
+            }
           }
+        });
+
+        if (newURLs.length > 0) {
+          $(element).attr(attribute, newURLs.join(", "));
         }
       });
-
-      if (newURLs.length > 0) {
-        $(element).attr(attribute, newURLs.join(", "));
-      }
-    });
-  });
+    },
+  );
 }

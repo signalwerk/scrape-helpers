@@ -131,7 +131,7 @@ export class WebServer {
 
     // History endpoint
     this.app.get("/api/history", (req, res) => {
-      const { status, search, queues, errorFilter, limit = 50 } = req.query;
+      const { status, search, queues, errorFilter, limit = 150 } = req.query;
       const selectedQueues = queues ? queues.split(",") : [];
 
       const results = {};
