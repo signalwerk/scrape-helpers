@@ -252,9 +252,22 @@ export function urlToPath(uri, mime) {
   const mimeExt = getExtensionOfMime(mime);
   let url = patcher.patch(uri, { mimeExt });
 
-  let result = decodeURIComponent(url); // .replaceAll("?", "%3F"); // the get params are not encoded
+  let result = decodeURIComponent(url);
 
-  return result; // .replace("file://", "/");
+  return result;
+}
+
+function extractProtocolPortDomain(url) {
+  try {
+    const urlObj = new URL(url);
+    const protocol = urlObj.protocol;
+    const port = urlObj.port ? `:${urlObj.port}` : "";
+    const domain = urlObj.hostname;
+    return `${protocol}//${domain}${port}`;
+  } catch (error) {
+    console.error("Invalid URL:", error);
+    return null;
+  }
 }
 
 export async function rewriteHtml(
@@ -273,6 +286,17 @@ export async function rewriteHtml(
     cb: (url) => {
       const fullUrl = absoluteUrl(url, baseUrl);
       if (!fullUrl) return;
+
+      // If the URL is the same as the base URL, we rewrite it to the root URL
+      // this is for example used in link[rel=alternate] or link[rel=canonical]
+      if (fullUrl === baseUrl) {
+        return getRelativeURL(
+          fullUrl,
+          extractProtocolPortDomain(baseUrl),
+          true,
+          true,
+        );
+      }
 
       const writeJobData = {
         ...job.data,
