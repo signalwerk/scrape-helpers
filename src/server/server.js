@@ -111,6 +111,14 @@ export class WebServer {
   }
 
   setupRoutes() {
+    // show server stats
+    this.app.get("/", (req, res) => {
+      res.json({
+        memoryUsage: process.memoryUsage(),
+        uptime: process.uptime(),
+      });
+    });
+
     // Stats endpoint
     this.app.get("/api/stats", (req, res) => {
       const stats = {

@@ -1,188 +1,136 @@
 import { WebServer } from "../packages/scrape-helpers/src/server/server.js";
-import { Cache } from "../packages/scrape-helpers/src/server/utils/Cache.js";
-import { RequestTracker } from "../packages/scrape-helpers/src/server/utils/RequestTracker.js";
+import { getRelativeURL } from "../packages/scrape-helpers/src/server/utils/getRelativeURL.js";
 import { DataPatcher } from "../packages/scrape-helpers/src/server/utils/DataPatcher.js";
+import { removeCommentsIf } from "../packages/scrape-helpers/src/server/processor/cheerio-helper.js";
 
 import {
   isDomainValid,
+  isPathValid,
   isAlreadyRequested,
 } from "../packages/scrape-helpers/src/server/processor/request.js";
 import {
   addParseJob,
   guessMimeType,
-  parseHtml,
-  parseCss,
+  parseFiles,
 } from "../packages/scrape-helpers/src/server/processor/parse.js";
 import { addFetchJob } from "../packages/scrape-helpers/src/server/processor/fetch.js";
 import {
   isCached,
   fetchHttp,
 } from "../packages/scrape-helpers/src/server/processor/fetch.js";
+import {
+  handleRedirected,
+  writeOutput,
+  isAlreadyWritten,
+} from "../packages/scrape-helpers/src/server/processor/write.js";
 
-// Create instances of required components
-const cache = new Cache();
-const requestTracker = new RequestTracker();
 const dataPatcher = new DataPatcher();
 
 // Configure data patcher rules
+// change content that is different for each request
+
 dataPatcher
-  //  .addRule()
   .addRule({
-    includes: ["https://example.com/style.css"],
-    search: "hello",
-    replace: "world",
+    includes: [/.*/],
+    search: /"(wgRequestId|cputime|walltime|timestamp)":"[^"]*"/g,
+    replace: `"$1":""`,
+  })
+  .addRule({
+    includes: [/.*/],
+    search: /"(timingprofile)":\[[^\]]*\]/gm,
+    replace: `"$1":[]`,
+  })
+  .addRule({
+    includes: [/.*/],
+    search: /"(wgBackendResponseTime)":[0-9]+/g,
+    replace: `"$1":0`,
+  })
+  .addRule({
+    includes: [/.*/],
+    search: /(mw.loader.implement\("user.tokens@)[^"]+"/g,
+    replace: `$10000000"`,
   });
 
 // Create server instance
 const server = new WebServer({
-  cache,
+  urls: ["https://example.com"],
   dataPatcher,
-  requestTracker,
-  requestConcurrency: 100,
-  fetchConcurrency: 10,
-  parseConcurrency: 100,
 });
 
 // Configure queue processors
 server.configureQueues({
   request: [
-    async (job, next) =>
-      await isDomainValid(
-        {
-          job,
-          allowed: [/^([a-z0-9-]+\.)*example\.com$/i],
-        },
-        next,
-      ),
-    async (job, next) =>
-      await isAlreadyRequested(
-        {
-          job,
-          requestTracker,
-          getKey: (job) => job.data.uri,
-        },
-        next,
-      ),
-    async (job, next) =>
-      await addFetchJob(
-        {
-          job,
-          events: server.events,
-        },
-        next,
-      ),
+    isDomainValid({
+      allowed: [/^([a-z0-9-]+\.)*example\.com$/i],
+    }),
+    isPathValid({
+      disallowed: [
+        /.*(Diskussion|action=|Spezial|Benutzer.*oldid|Hauptseite.*oldid|title=.*oldid|printable=yes).*/i,
+      ],
+    }),
+    isAlreadyRequested(),
+    addFetchJob(),
   ],
-  fetch: [
-    async (job, next) =>
-      await isCached(
-        {
-          job,
-          events: server.events,
-          cache,
-          getKey: (job) => job.data.uri,
+  fetch: [isCached(), fetchHttp(), addParseJob()],
+  parse: [guessMimeType(), parseFiles()],
+  write: [
+    isAlreadyWritten(),
+    handleRedirected(),
+    guessMimeType(),
+    writeOutput({
+      getUrl: ({ absoluteUrl, baseUrl }) =>
+        getRelativeURL(absoluteUrl, baseUrl, true, false, true),
+      rewrite: {
+        ["text/html"]: ($) => {
+          removeCommentsIf($, {
+            includes: "Saved in parser cache with",
+          });
+          removeCommentsIf($, {
+            includes: "NewPP limit report",
+          });
+          // This function removes old IE conditional comments from the HTML.
+          removeCommentsIf($, {
+            includes: ["[if", "endif]"],
+          });
+
+          $(".wiki-no-archive").remove(); // hand-curated elements to remove
+
+          $("#footer-icons").remove(); // remove footer mediawiki icon
+          $("#footer-places").remove(); // remove «Datenschutz | Über DDOS | Haftungsausschluss»
+
+          $(".mw-editsection").remove(); // remove edit links
+          $(".printfooter").remove(); // remove footer in print view
+
+          $('link[rel="edit"]').remove(); // remove edit links
+
+          $('link[type="application/x-wiki"]').remove(); // remove feeds
+          $('link[type="application/rsd+xml"]').remove(); // remove feeds
+          $('link[type="application/atom+xml"]').remove(); // remove feeds
+          $('link[type="application/opensearchdescription+xml"]').remove(); // remove feeds
+
+          $("#n-recentchanges").remove(); // remove «Letzte Änderungen»
+          $("#n-randompage").remove(); // remove «Zufällige Seite»
+          $("#n-help-mediawiki, #n-help").remove(); // remove «Hilfe zu MediaWiki»  1.39.1, v1.31.0
+          $("#p-tb").remove(); // remove «Werkzeuge»
+
+          $("#right-navigation").remove(); // remove «Lesen | Bearbeiten | Versionsgeschichte | Search»
+          $("#left-navigation").remove(); // remove «$page | Diskussion»
+
+          $("#mw-head").remove(); // remove «Nicht angemeldet | Diskussionsseite | Beiträge | Benutzerkonto erstellen | Anmelden»
+
+          // remove some js comming from loader/modules
+          $('script[src^="/load.php"]').remove();
+
+          // remove links to creat new pages
+          $("a.new").each(function () {
+            $(this).replaceWith($(this).text());
+          });
+
+          // remove «(Diskussion | Beiträge)» form user links (on media/image pages)
+          $(".mw-usertoollinks").remove();
         },
-        next,
-      ),
-    async (job, next) =>
-      await fetchHttp(
-        {
-          job,
-          cache,
-          events: server.events,
-        },
-        next,
-      ),
-    async (job, next) =>
-      await addParseJob(
-        {
-          job,
-          events: server.events,
-        },
-        next,
-      ),
-  ],
-  parse: [
-    async (job, next) =>
-      await guessMimeType(
-        {
-          job,
-          cache,
-        },
-        next,
-      ),
-    async (job, next) => {
-      const { data: dataFromCache, metadata } = cache.get(job.data.cache.key);
-
-      const data = dataPatcher.patch(job.data.uri, `${dataFromCache}`, (log) =>
-        job.log(log),
-      );
-
-      if (!data || !metadata) {
-        throw new Error(
-          `No data or metadata found in cache ${job.data.cache.key}`,
-        );
-      }
-
-      const mimeType = job.data.mimeType;
-
-      switch (mimeType) {
-        case "application/xhtml+xml":
-        case "text/html": {
-          await parseHtml({ job, events: server.events, data }, next);
-          break;
-        }
-        case "text/css": {
-          await parseCss({ job, events: server.events, data }, next);
-          break;
-        }
-        case "application/javascript":
-        //
-        case "text/plain":
-        case "image/png":
-        case "image/jpeg":
-        case "image/jpg":
-        case "image/gif":
-        case "image/webp":
-        case "image/svg+xml":
-        case "image/avif":
-        case "image/apng":
-        case "image/bmp":
-        case "image/tiff":
-        case "image/x-icon":
-        case "text/xml":
-        case "image/vnd.microsoft.icon":
-        case "application/vnd.oasis.opendocument.text":
-        case "application/pdf":
-        case "application/json":
-        case "application/x-font-ttf":
-        case "font/ttf":
-        case "font/woff":
-        case "font/woff2":
-        case "application/vnd.ms-fontobject": // eot
-        case "application/rss+xml":
-        case "application/atom+xml":
-        case "application/rdf+xml":
-        case "application/rss+xml":
-        case "application/rdf+xml":
-        case "application/x-rss+xml":
-        case "application/xml":
-        case "application/x-www-form-urlencoded":
-        case "application/x-shockwave-flash":
-        case "application/epub+zip": {
-          // we don't need to parse these
-          break;
-        }
-        default: {
-          throw new Error(
-            `Unsupported content type: ${
-              metadata.headers["content-type"] || "undefined"
-            }`,
-          );
-        }
-      }
-
-      next();
-    },
+      },
+    }),
   ],
 });
 
