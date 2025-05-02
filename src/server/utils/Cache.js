@@ -3,6 +3,8 @@ import path from "path";
 import { fsNameOfUri } from "./fsNameOfUri.js";
 import { writeFile } from "./writeFile.js";
 
+const isDirectory = (path) => lstatSync(path)?.isDirectory();
+
 export class Cache {
   constructor(baseDir = "./DATA/SOURCE") {
     this.baseDir = baseDir;
@@ -11,13 +13,14 @@ export class Cache {
   async set(key, { metadata, data }) {
     const filePath = path.resolve(this.baseDir, fsNameOfUri(key));
     const metaFilePath = `${filePath}.json`;
+    const rawFilePath = `${filePath}.raw`;
 
     // Write metadata
     await writeFile(metaFilePath, JSON.stringify(metadata, null, 2));
 
     // Write data if provided
     if (data) {
-      await writeFile(filePath, data);
+      await writeFile(rawFilePath, data);
     }
   }
 
@@ -38,7 +41,14 @@ export class Cache {
 
   getData(key) {
     const filePath = path.resolve(this.baseDir, fsNameOfUri(key));
+    const rawFilePath = `${filePath}.raw`;
 
+    // new API
+    if (fs.existsSync(rawFilePath)) {
+      return fs.readFileSync(rawFilePath);
+    }
+
+    // backward compatibility
     if (!fs.existsSync(filePath)) {
       throw new Error(`Data file not found: ${filePath}`);
     }

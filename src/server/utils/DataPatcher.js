@@ -73,16 +73,10 @@ class DataPatcher {
 
     if (!data) {
       if (log) {
-        throw new Error("No data to patch");
+        log("No data to patch");
       }
       return data;
     }
-    // else {
-    //   if (log) {
-    //     log(`Patching data of type ${typeof data}`);
-    //     log(`Data: ${data.slice(0, 100)}`);
-    //   }
-    // }
 
     return this.rules.reduce((patchedData, rule) => {
       // If includes exist, path must match at least one

@@ -16,10 +16,16 @@ export function parseFiles() {
       (log) => job.log(log),
     );
 
-    if (!data || !metadata) {
+    if (!metadata) {
       throw new Error(
         `No data or metadata found in cache ${job.data.cache.key}`,
       );
+    }
+
+    if (!data) {
+      job.log("No data found in cache");
+      next();
+      return;
     }
 
     const mimeType = job.data.mimeType;
@@ -108,7 +114,7 @@ export async function parseCss({ job, events, data }, next) {
     await postcss([plugin])
       .process(data, { from: undefined })
       .then(() => {
-        // Process @import rules  
+        // Process @import rules
         resources.imports.forEach((originalUrl) => {
           const fullUrl = absoluteUrl(originalUrl, job.data.uri);
           if (!fullUrl) return;
