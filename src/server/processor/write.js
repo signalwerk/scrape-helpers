@@ -11,6 +11,7 @@ import { writeFile } from "../utils/writeFile.js";
 import { getExtension, sameExtension, fixFilename } from "../utils/fsUtils.js";
 import { processElements } from "../utils/processElements.js";
 import { isAlreadyProcessed } from "./general.js";
+import { stripStyleComments } from "../utils/styleUtils.js";
 
 export function isAlreadyWritten() {
   return isAlreadyProcessed({
@@ -49,6 +50,35 @@ export function writeOutput({ rewrite, getUrl }) {
       const $ = cheerio.load(data);
       if (rewrite && rewrite[mime]) {
         rewrite[mime]($);
+      }
+
+      // Process inline style tags sequentially to rewrite URLs and apply proper formatting
+      const styleTags = $("style").toArray();
+      for (const element of styleTags) {
+        let styleContent = $(element).html();
+
+        // Strip XHTML comment wrappers from style content if present
+        styleContent = stripStyleComments(styleContent);
+
+        if (!styleContent) {
+          $(element).remove();
+          continue;
+        }
+
+        const rewrittenCss = await rewriteCss({
+          content: styleContent,
+          job,
+          mime,
+          cache: context.cache,
+          getUrl,
+          createWriteJob: (writeJobData) =>
+            context.events?.emit("createWriteJob", writeJobData),
+        });
+        if (rewrittenCss) {
+          $(element).html(rewrittenCss);
+        } else {
+          $(element).remove();
+        }
       }
 
       await rewriteHtml(

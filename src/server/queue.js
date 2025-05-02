@@ -224,14 +224,16 @@ export class Queue {
         filtered = filtered.filter(
           (job) =>
             !job.id.toLowerCase().includes(term) &&
-            !JSON.stringify(job.data).toLowerCase().includes(term),
+            !JSON.stringify(job.data).toLowerCase().includes(term) &&
+            !JSON.stringify(job.logs).toLowerCase().includes(term),
         );
       } else {
         // Include jobs that match the term
         filtered = filtered.filter(
           (job) =>
             job.id.toLowerCase().includes(term) ||
-            JSON.stringify(job.data).toLowerCase().includes(term),
+            JSON.stringify(job.data).toLowerCase().includes(term) ||
+            JSON.stringify(job.logs).toLowerCase().includes(term),
         );
       }
     }

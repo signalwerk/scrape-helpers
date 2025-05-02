@@ -3,6 +3,7 @@ import { absoluteUrl } from "../utils/absoluteUrl.js";
 import { getMimeWithoutEncoding } from "../utils/mime.js";
 import postcss from "postcss";
 import { processElements } from "../utils/processElements.js";
+import { stripStyleComments } from "../utils/styleUtils.js";
 
 export function parseFiles() {
   return async ({ job, context }, next) => {
@@ -185,7 +186,21 @@ function findResources() {
         Once(root) {
           // Process @import rules
           root.walkAtRules("import", (rule) => {
-            resources.imports.push(rule.params.replace(/['";]/g, ""));
+            // Handle different @import formats:
+            // 1. @import "file.css";
+            // 2. @import url("file.css");
+            // 3. @import url(file.css);
+            
+            const importValue = rule.params.trim();
+            
+            // Check if it's a url() format
+            const urlMatch = importValue.match(/^url\(['"]?([^'"()]+)['"]?\).*$/);
+            if (urlMatch) {
+              resources.imports.push(urlMatch[1]);
+            } else {
+              // It's a direct string format, remove quotes and semicolons
+              resources.imports.push(importValue.replace(/['";]/g, ""));
+            }
           });
 
           // Process @font-face rules
@@ -233,23 +248,53 @@ export async function parseHtml({ job, events, data }, next) {
   let baseUrl =
     absoluteUrl($("base")?.attr("href") || "", job.data.uri) || job.data.uri;
 
-  processElements({
-    $,
-    cb: (url) => {
-      const fullUrl = absoluteUrl(url, baseUrl);
-      if (!fullUrl) return;
+  try {
+    // Process style tags sequentially to properly catch errors
+    const styleTags = $("style").toArray();
+    for (const el of styleTags) {
+      let styleContent = $(el).html();
 
-      const requestJobData = {
-        ...job.data,
-        uri: fullUrl,
-        _parent: job.id,
-      };
+      // Strip XHTML comment wrappers from style content if present
+      styleContent = stripStyleComments(styleContent);
 
-      job.log(`Created request for resource: ${fullUrl}`);
-      events?.emit("createRequestJob", requestJobData);
-    },
-  });
+      // Skip empty or invalid style tags
+      if (!styleContent) {
+        job.log("Skipping empty style tag");
+        continue;
+      }
 
-  job.log(`parseHtml done`);
-  next();
+      // Process the style content
+      await parseCss(
+        {
+          job,
+          events,
+          data: styleContent,
+        },
+        () => {},
+      );
+    }
+
+    processElements({
+      $,
+      cb: (url) => {
+        const fullUrl = absoluteUrl(url, baseUrl);
+        if (!fullUrl) return;
+
+        const requestJobData = {
+          ...job.data,
+          uri: fullUrl,
+          _parent: job.id,
+        };
+
+        job.log(`Created request for resource: ${fullUrl}`);
+        events?.emit("createRequestJob", requestJobData);
+      },
+    });
+
+    job.log(`parseHtml done`);
+    next();
+  } catch (error) {
+    job.log(`Error processing HTML: ${error.message}`);
+    throw error;
+  }
 }
