@@ -190,11 +190,13 @@ function findResources() {
             // 1. @import "file.css";
             // 2. @import url("file.css");
             // 3. @import url(file.css);
-            
+
             const importValue = rule.params.trim();
-            
+
             // Check if it's a url() format
-            const urlMatch = importValue.match(/^url\(['"]?([^'"()]+)['"]?\).*$/);
+            const urlMatch = importValue.match(
+              /^url\(['"]?([^'"()]+)['"]?\).*$/,
+            );
             if (urlMatch) {
               resources.imports.push(urlMatch[1]);
             } else {

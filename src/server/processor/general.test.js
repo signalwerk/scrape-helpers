@@ -23,9 +23,9 @@ describe("Request Validation", () => {
     it("should allow new requests", async () => {
       mockTracker.hasBeenProcessed.mockReturnValue(false);
 
-      const middleware = isAlreadyProcessed({ tracker: 'trackerKey' });
+      const middleware = isAlreadyProcessed({ tracker: "trackerKey" });
       const context = { trackerKey: mockTracker };
-      
+
       await middleware({ job: mockJob, context }, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith();
@@ -37,9 +37,9 @@ describe("Request Validation", () => {
     it("should reject duplicate requests", async () => {
       mockTracker.hasBeenProcessed.mockReturnValue(true);
 
-      const middleware = isAlreadyProcessed({ tracker: 'trackerKey' });
+      const middleware = isAlreadyProcessed({ tracker: "trackerKey" });
       const context = { trackerKey: mockTracker };
-      
+
       await middleware({ job: mockJob, context }, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(null, true);

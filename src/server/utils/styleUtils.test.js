@@ -13,7 +13,7 @@ describe("stripStyleComments", () => {
         background-color: #f5f5f5;
       }
     `;
-    
+
     expect(stripStyleComments(normalCSS)).toBe(normalCSS.trim());
   });
 
@@ -28,7 +28,7 @@ describe("stripStyleComments", () => {
         background-color: #f5f5f5;
       }
     -->`;
-    
+
     const expectedResult = `
       body {
         font-family: sans-serif;
@@ -39,7 +39,7 @@ describe("stripStyleComments", () => {
         background-color: #f5f5f5;
       }
     `.trim();
-    
+
     expect(stripStyleComments(commentWrappedCSS)).toBe(expectedResult);
   });
 
@@ -59,14 +59,14 @@ describe("stripStyleComments", () => {
         color: red;
       }
     -->`;
-    
+
     const expected = `
       /* This is a CSS comment */
       body {
         color: red;
       }
     `.trim();
-    
+
     expect(stripStyleComments(nestedComments)).toBe(expected);
   });
 
@@ -76,13 +76,13 @@ describe("stripStyleComments", () => {
       <!-- inner comment -->
       body { color: red; }
     outer end -->`;
-    
+
     // The function keeps the content between <!-- and --> markers
     const expected = `outer start
       <!-- inner comment -->
       body { color: red; }
     outer end`.trim();
-    
+
     expect(stripStyleComments(multipleComments)).toBe(expected);
   });
 
@@ -90,7 +90,7 @@ describe("stripStyleComments", () => {
     const malformedComment = `<!--
       body { color: red; }
     -> some text`;
-    
+
     // Malformed comments should be returned as is (trimmed)
     expect(stripStyleComments(malformedComment)).toBe(malformedComment.trim());
   });
@@ -101,9 +101,9 @@ describe("stripStyleComments", () => {
       body { color: red; }
     -->  
     `;
-    
+
     const expected = `body { color: red; }`.trim();
-    
+
     expect(stripStyleComments(contentWithWhitespace)).toBe(expected);
   });
-}); 
+});
