@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { fsNameOfUri } from "./fsNameOfUri.js";
+import { fsCacheNameOfUri } from "./fsNameOfUri.js";
 import { writeFile } from "./writeFile.js";
 
 export class Cache {
@@ -9,11 +9,14 @@ export class Cache {
   }
 
   async set(key, { metadata, data }) {
-    const filePath = path.resolve(this.baseDir, fsNameOfUri(key));
+    const filePath = path.resolve(this.baseDir, fsCacheNameOfUri(key));
     const metaFilePath = `${filePath}.json`;
     const rawFilePath = `${filePath}.raw`;
 
-    await writeFile(metaFilePath, JSON.stringify(metadata, null, 2));
+    await writeFile(
+      metaFilePath,
+      JSON.stringify({ metadata, hasData: !!data }, null, 2),
+    );
 
     if (data) {
       await writeFile(rawFilePath, data);
@@ -21,20 +24,31 @@ export class Cache {
   }
 
   has(key) {
-    const metaFilePath = path.resolve(this.baseDir, `${fsNameOfUri(key)}.json`);
+    const metaFilePath = path.resolve(
+      this.baseDir,
+      `${fsCacheNameOfUri(key)}.json`,
+    );
     return fs.existsSync(metaFilePath);
   }
 
-  getMetadata(key) {
-    const metaFilePath = path.resolve(this.baseDir, `${fsNameOfUri(key)}.json`);
+  getRawMetadata(key) {
+    const metaFilePath = path.resolve(
+      this.baseDir,
+      `${fsCacheNameOfUri(key)}.json`,
+    );
     if (!fs.existsSync(metaFilePath)) {
       throw new Error(`Metadata file not found: ${metaFilePath}`);
     }
     return JSON.parse(fs.readFileSync(metaFilePath, "utf8"));
   }
 
+  getMetadata(key) {
+    const meta = this.getRawMetadata(key);
+    return meta.metadata;
+  }
+
   getData(key) {
-    const filePath = path.resolve(this.baseDir, fsNameOfUri(key));
+    const filePath = path.resolve(this.baseDir, fsCacheNameOfUri(key));
     const rawFilePath = `${filePath}.raw`;
 
     if (fs.existsSync(rawFilePath)) {
@@ -53,9 +67,11 @@ export class Cache {
       return null;
     }
 
+    const { metadata, hasData } = this.getRawMetadata(key);
+
     return {
-      metadata: this.getMetadata(key),
-      data: this.getData(key),
+      metadata,
+      data: hasData ? this.getData(key) : null,
     };
   }
 

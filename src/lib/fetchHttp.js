@@ -3,19 +3,45 @@ import axios from "axios";
 import { v4 as uuid } from "uuid";
 import { RedirectError } from "./FlowControlError.js";
 
-
 export function fetchHttp({ url, path, proxy, cacheKey }) {
   const fetchUrl = proxy || url;
 
   return async (context, logger) => {
-    if (context.cached) {
-      logger.log(`Skipping fetch, using cached data for ${url}`, {
+    const cache = new Cache(path);
+
+    if (cache.has(cacheKey)) {
+      const cachedData = cache.get(cacheKey);
+      
+      // Check if this is a redirect
+      if (cachedData.metadata?.redirected) {
+        const newUri = cachedData.metadata.redirected;
+        logger.log(`Using cached redirect for ${url} -> ${newUri}`, {
+          fromCache: true,
+        });
+        
+        // Add redirect to request queue with incremented counter
+        context.addToQueue("request", {
+          url: newUri,
+          redirects: (context.redirects || 0) + 1,
+          id: uuid(),
+          addedAt: new Date().toISOString(),
+          parentId: context.id,
+        });
+        
+        context.complete();
+        throw new RedirectError(`HTTP redirect to ${newUri}`);
+      }
+      
+      logger.log(`Using cached data for ${url}`, {
         fromCache: true,
       });
-      return context;
+      
+      return {
+        ...context,
+        cached: true,
+        cachedData,
+      };
     }
-
-    const cache = new Cache(path);
 
     logger.log(`Fetching ${url} (from ${fetchUrl})`);
 
@@ -119,7 +145,11 @@ export function fetchHttp({ url, path, proxy, cacheKey }) {
 
       await cache.set(cacheKey, { metadata });
 
-      const errorMessage = `Request failed. Status: ${statusCode || "unknown"} Text: ${statusText || "unknown"} Message: ${axiosError.message || "unknown"}`;
+      const errorMessage = `Request failed. Status: ${
+        statusCode || "unknown"
+      } Text: ${statusText || "unknown"} Message: ${
+        axiosError.message || "unknown"
+      }`;
 
       logger.error(`Saved error to cache for ${fetchUrl}`, {
         statusCode,

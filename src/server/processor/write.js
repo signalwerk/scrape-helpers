@@ -295,7 +295,7 @@ function extractProtocolPortDomain(url) {
     const domain = urlObj.hostname;
     return `${protocol}//${domain}${port}`;
   } catch (error) {
-    console.error("Invalid URL:", error);
+    console.error(`Invalid URL (${url}):`, error);
     return null;
   }
 }

@@ -18,7 +18,7 @@ export function getRelativeURL(url, base, reload = false, root, dotSlash) {
   try {
     url = new URL(url);
   } catch (e) {
-    throw new Error("Invalid URL");
+    throw new Error(`Invalid URL (${url}): ` + e.message);
   }
 
   try {

@@ -1,29 +1,68 @@
 import { URL } from "url";
+import { getExtensionOfMime } from "./mime.js";
 
-export function fsNameOfUri(uri, rootName = "---root") {
-  const parsedUrl = new URL(uri);
-  let queryParams = new URLSearchParams(parsedUrl.search);
-  let sortedQuery = queryParams.toString();
+export function fsCacheNameOfUri(uri, rootName = "---root") {
+  try {
+    const parsedUrl = new URL(uri);
+    let queryParams = new URLSearchParams(parsedUrl.search);
+    let sortedQuery = queryParams.toString();
 
-  let path = [
-    `${parsedUrl.protocol.replace(":", "")}/`,
-    `${parsedUrl.host}`,
-    parsedUrl.pathname.replace(/[:]/g, (str) => encodeURIComponent(str)),
-  ]
-    .filter(Boolean)
-    .join("")
-    // replace multiple slashes with encoded slashes (minus one slash) followed by slash
-    .replace(/\/{2,}/g, (match) => `${encodeURIComponent(match.slice(1))}/`);
+    let path = [
+      `${parsedUrl.protocol.replace(":", "")}/`,
+      `${parsedUrl.host}`,
+      parsedUrl.pathname.replace(/[:]/g, (str) => encodeURIComponent(str)),
+    ]
+      .filter(Boolean)
+      .join("")
+      // replace multiple slashes with encoded slashes (minus one slash) followed by slash
+      .replace(/\/{2,}/g, (match) => `${encodeURIComponent(match.slice(1))}/`);
 
-  // Append '---root' if the original URI ends with a slash
-  if (path.endsWith("/") && rootName) {
-    path += rootName;
+    // Append '---root' if the original URI ends with a slash
+    if (path.endsWith("/") && rootName) {
+      path += rootName;
+    }
+
+    const fileName = `${path}${
+      sortedQuery ? encodeURIComponent(`?${sortedQuery}`) : ""
+    }`;
+    return fileName;
+  } catch (error) {
+    console.error(`Error in fsCacheNameOfUri (${uri}):`, error);
+    throw error;
   }
+}
 
-  const fileName = `${path}${
-    sortedQuery ? encodeURIComponent(`?${sortedQuery}`) : ""
-  }`;
-  return fileName;
+export function fsNameOfUri(uri, rootName = "index", mime = null) {
+  try {
+    const parsedUrl = new URL(uri);
+    let queryParams = new URLSearchParams(parsedUrl.search);
+    let sortedQuery = queryParams.toString();
+
+    let path = [
+      `${parsedUrl.protocol.replace(":", "")}/`,
+      `${parsedUrl.host}`,
+      parsedUrl.pathname, //.replace(/[:]/g, (str) => encodeURIComponent(str)),
+    ]
+      .filter(Boolean)
+      .join("");
+    // replace multiple slashes with encoded slashes (minus one slash) followed by slash
+    // .replace(/\/{2,}/g, (match) => `${encodeURIComponent(match.slice(1))}/`);
+
+    // Append '---root' if the original URI ends with a slash
+    if (path.endsWith("/") && rootName) {
+      path += rootName;
+    }
+
+    const mimeExt = mime ? getExtensionOfMime(mime) : "";
+
+    const fileName = `${path}${sortedQuery ? `?${sortedQuery}` : ""}${
+      mimeExt ? `.${mimeExt}` : ""
+    }`;
+    return fileName;
+  } catch (error) {
+    console.error(`Error in fsNameOfUri (${uri}):`, error);
+    throw error;
+  }
 }
 
 // console.log(
