@@ -1,4 +1,4 @@
-export async function processElements({ $, cb }, next) {
+export async function processURL({ $, cb }) {
   // Process all elements with a single call
   const configurations = [
     // Navigation and links

@@ -32,6 +32,30 @@ export function fsCacheNameOfUri(uri, rootName = "---root") {
   }
 }
 
+export function fsReadyNameOfUri(uri, rootName = "index", mime = null) {
+  try {
+    const parsedUrl = new URL(uri);
+
+    // Append rootName if the original URI ends with a slash
+    if (parsedUrl.pathname.endsWith("/") && rootName) {
+      parsedUrl.pathname += rootName;
+    }
+
+    if (parsedUrl.pathname && mime) {
+      const mimeExt = getExtensionOfMime(mime) || "";
+
+      if (mimeExt) {
+        parsedUrl.pathname += `.${mimeExt}`;
+      }
+    }
+
+    return parsedUrl.toString();
+  } catch (error) {
+    console.error(`Error in fsReadyNameOfUri (${uri}):`, error);
+    throw error;
+  }
+}
+
 export function fsNameOfUri(uri, rootName = "index", mime = null) {
   try {
     const parsedUrl = new URL(uri);
@@ -48,7 +72,7 @@ export function fsNameOfUri(uri, rootName = "index", mime = null) {
     // replace multiple slashes with encoded slashes (minus one slash) followed by slash
     // .replace(/\/{2,}/g, (match) => `${encodeURIComponent(match.slice(1))}/`);
 
-    // Append '---root' if the original URI ends with a slash
+    // Append rootName if the original URI ends with a slash
     if (path.endsWith("/") && rootName) {
       path += rootName;
     }

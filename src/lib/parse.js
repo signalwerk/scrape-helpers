@@ -2,7 +2,7 @@ import { v4 as uuid } from "uuid";
 import * as cheerio from "cheerio";
 import { absoluteUrl } from "./absoluteUrl.js";
 import postcss from "postcss";
-import { processElements } from "./processElements.js";
+import { processURL } from "./processURL.js";
 import { stripStyleComments } from "./styleUtils.js";
 
 export function parseFiles() {
@@ -282,7 +282,7 @@ export async function parseHtml(context, logger, htmlData) {
       }
     }
 
-    processElements({
+    processURL({
       $,
       cb: (url) => {
         const fullUrl = absoluteUrl(url, baseUrl);
@@ -298,6 +298,9 @@ export async function parseHtml(context, logger, htmlData) {
         logger.log(`Created request for resource: ${fullUrl}`);
       },
     });
+
+    // Store the cheerio instance in context for later processing
+    context.$ = $;
 
     logger.log(`HTML parsing completed`);
   } catch (error) {
