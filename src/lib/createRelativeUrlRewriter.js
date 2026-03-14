@@ -66,6 +66,6 @@ export function createRelativeUrlRewriter({ mimeTypes } = {}) {
       mime: mimeTypes.get(normalizedBaseUrl) || null,
     });
 
-    return getRelativeURL(fileAbsoluteUrl, fileBaseUrl, true, false, true);
+    return getRelativeURL(fileAbsoluteUrl, fileBaseUrl, true, false, true).replace("?", "%3F")
   };
 }
