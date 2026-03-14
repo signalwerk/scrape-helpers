@@ -1,4 +1,4 @@
-import { Cache } from "../lib/Cache.js";
+import { Cache } from "./Cache.js";
 import axios from "axios";
 import { v4 as uuid } from "uuid";
 import { FlowControlError } from "./FlowControlError.js";

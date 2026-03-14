@@ -1,5 +1,5 @@
-import { absoluteUrl } from "../lib/absoluteUrl.js";
-import { processURL } from "../lib/processURL.js";
+import { absoluteUrl } from "./absoluteUrl.js";
+import { processURL } from "./processURL.js";
 
 const htmlMimeTypes = new Set(["application/xhtml+xml", "text/html"]);
 

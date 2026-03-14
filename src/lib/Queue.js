@@ -1,5 +1,5 @@
 import { baseLogger } from "./SqliteLogger.js";
-import { FlowControlError } from "../final/FlowControlError.js";
+import { FlowControlError } from "./FlowControlError.js";
 
 // Generic Queue class
 export class Queue {

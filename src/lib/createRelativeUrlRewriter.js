@@ -1,6 +1,6 @@
-import { absoluteUrl } from "../lib/absoluteUrl.js";
-import { fsReadyNameOfUri } from "../lib/fsNameOfUri.js";
-import { getRelativeURL } from "../lib/getRelativeURL.js";
+import { absoluteUrl } from "./absoluteUrl.js";
+import { fsReadyNameOfUri } from "./fsNameOfUri.js";
+import { getRelativeURL } from "./getRelativeURL.js";
 import { normalizeUrl } from "./normalizeUrl.js";
 
 function extractProtocolPortDomain(url) {

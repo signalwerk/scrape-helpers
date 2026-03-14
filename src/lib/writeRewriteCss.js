@@ -1,4 +1,4 @@
-import { rewriteCss } from "../lib/rewrite.js";
+import { rewriteCss } from "./rewrite.js";
 
 export function writeRewriteCss({ rewriteUrl } = {}) {
   return async (context, logger) => {

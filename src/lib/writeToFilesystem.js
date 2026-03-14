@@ -1,6 +1,6 @@
 import path from "path";
-import { fsReadyNameOfUri } from "../lib/fsNameOfUri.js";
-import { writeFile } from "../lib/writeFile.js";
+import { fsReadyNameOfUri } from "./fsNameOfUri.js";
+import { writeFile } from "./writeFile.js";
 
 export function writeToFilesystem({ outputDir = "." } = {}) {
   return async (context, logger) => {

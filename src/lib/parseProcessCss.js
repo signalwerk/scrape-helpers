@@ -1,9 +1,9 @@
-import { parseHtml } from "../lib/parse.js";
+import { parseCss } from "./parse.js";
 import { getMimeWithoutEncoding } from "./mime.js";
 
-const htmlMimeTypes = new Set(["application/xhtml+xml", "text/html"]);
+const cssMimeTypes = new Set(["text/css"]);
 
-export function parseProcessHtml({ dataPatcher, htmlProcessors = {} } = {}) {
+export function parseProcessCss({ dataPatcher } = {}) {
   return async (context, logger) => {
     if (context.parsed !== undefined) {
       return context;
@@ -11,7 +11,7 @@ export function parseProcessHtml({ dataPatcher, htmlProcessors = {} } = {}) {
 
     const mimeType = getMimeWithoutEncoding(context.mimeType);
 
-    if (!htmlMimeTypes.has(mimeType)) {
+    if (!cssMimeTypes.has(mimeType)) {
       return context;
     }
 
@@ -29,12 +29,7 @@ export function parseProcessHtml({ dataPatcher, htmlProcessors = {} } = {}) {
         ? dataPatcher.patch(context.parsedUrl.pathname, dataString, logger)
         : dataString;
 
-      await parseHtml({
-        context,
-        logger,
-        content: patchedData,
-        preProcess: htmlProcessors[mimeType],
-      });
+      await parseCss(context, logger, patchedData);
 
       return {
         ...context,
