@@ -1,4 +1,4 @@
-export function parseLoadData() {
+export function fetchLoadData() {
   return async (context, logger) => {
     if (context.cached && context.cachedData) {
       return {

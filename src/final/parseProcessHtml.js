@@ -3,11 +3,12 @@ import { getMimeWithoutEncoding } from "./mime.js";
 
 const htmlMimeTypes = new Set(["application/xhtml+xml", "text/html"]);
 
-export function parseProcessHtml({
-  dataPatcher,
-  htmlProcessors = {},
-} = {}) {
+export function parseProcessHtml({ dataPatcher, htmlProcessors = {} } = {}) {
   return async (context, logger) => {
+    if (context.parsed !== undefined) {
+      return context;
+    }
+
     const mimeType = getMimeWithoutEncoding(context.mimeType);
 
     if (!htmlMimeTypes.has(mimeType)) {

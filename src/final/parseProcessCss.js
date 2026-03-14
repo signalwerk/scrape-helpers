@@ -1,6 +1,8 @@
 import { parseCss } from "../lib/parse.js";
 import { getMimeWithoutEncoding } from "./mime.js";
 
+const cssMimeTypes = new Set(["text/css"]);
+
 export function parseProcessCss({ dataPatcher } = {}) {
   return async (context, logger) => {
     if (context.parsed !== undefined) {
@@ -9,19 +11,14 @@ export function parseProcessCss({ dataPatcher } = {}) {
 
     const mimeType = getMimeWithoutEncoding(context.mimeType);
 
+    if (!cssMimeTypes.has(mimeType)) {
+      return context;
+    }
+
     logger.log(`Starting parse for ${context.normalizedUrl}`);
     logger.log(`Parsing content with MIME type: ${mimeType}`, {
       mimeType,
     });
-
-    if (mimeType !== "text/css") {
-      logger.log(`No parsing needed for MIME type: ${mimeType}`);
-      return {
-        ...context,
-        parsed: true,
-        parsedAt: new Date().toISOString(),
-      };
-    }
 
     const dataString = Buffer.isBuffer(context.data)
       ? context.data.toString()

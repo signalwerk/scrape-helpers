@@ -47,7 +47,7 @@ export function createRelativeUrlRewriter({ mimeTypes } = {}) {
       return url;
     }
 
-    if (normalizedUrlWithoutHash === normalizedBaseUrl) {
+    if (normalizedUrl === normalizedBaseUrl) {
       return getRelativeURL(
         normalizedUrlWithoutHash,
         extractProtocolPortDomain(normalizedBaseUrl),
