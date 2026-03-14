@@ -2,7 +2,7 @@ import { guessMimeType } from "./mime.js";
 
 export function fetchGetMime() {
   return async (context, logger) => {
-    let headers, data;
+    let headers, data = {context}
 
     if (context.cached && context.cachedData) {
       // Use cached data
