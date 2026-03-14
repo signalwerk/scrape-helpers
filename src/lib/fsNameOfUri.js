@@ -1,6 +1,6 @@
 import path from "path";
 import { URL } from "url";
-import { getExtensionOfMime } from "./mime.js";
+import { getExtensionOfMime } from "../final/mime.js";
 import { UrlPatcher } from "./UrlPatcher.js";
 
 // Configuration for equivalent extensions

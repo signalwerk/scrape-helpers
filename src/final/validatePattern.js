@@ -1,6 +1,12 @@
-import { ValidationError } from "./FlowControlError.js";
+import { FlowControlError } from "./FlowControlError.js";
 
-export { ValidationError } from "./FlowControlError.js";
+// Custom error class for validation failures
+class ValidationError extends FlowControlError {
+  constructor(message) {
+    super(message);
+    this.name = "ValidationError";
+  }
+}
 
 export async function validatePattern({ value, pattern, logger }) {
   const { allowed, disallowed, includes } = pattern;

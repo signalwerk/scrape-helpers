@@ -1,24 +1,37 @@
-import { Cache } from "./Cache.js";
+import { Cache } from "../lib/Cache.js";
 import axios from "axios";
 import { v4 as uuid } from "uuid";
-import { RedirectError } from "./FlowControlError.js";
+import { FlowControlError } from "./FlowControlError.js";
 
-export function fetchHttp({ url, path, proxy, cacheKey }) {
-  const fetchUrl = proxy || url;
 
+// Custom error class for normal redirects
+export class RedirectError extends FlowControlError {
+  constructor(message) {
+    super(message);
+    this.name = "RedirectError";
+  }
+}
+
+
+export function fetchHttp({ path = "./DATA/SOURCE" } = {}) {
   return async (context, logger) => {
+    const proxy = context.proxy;
+    const url = context.normalizedUrl;
+    const fetchUrl = proxy || url;
+    const cacheKey = proxy || url;
+
     const cache = new Cache(path);
 
     if (cache.has(cacheKey)) {
       const cachedData = cache.get(cacheKey);
-      
+
       // Check if this is a redirect
       if (cachedData.metadata?.redirected) {
         const newUri = cachedData.metadata.redirected;
         logger.log(`Using cached redirect for ${url} -> ${newUri}`, {
           fromCache: true,
         });
-        
+
         // Add redirect to request queue with incremented counter
         context.addToQueue("request", {
           url: newUri,
@@ -27,15 +40,15 @@ export function fetchHttp({ url, path, proxy, cacheKey }) {
           addedAt: new Date().toISOString(),
           parentId: context.id,
         });
-        
+
         context.complete();
         throw new RedirectError(`HTTP redirect to ${newUri}`);
       }
-      
+
       logger.log(`Using cached data for ${url}`, {
         fromCache: true,
       });
-      
+
       return {
         ...context,
         cached: true,
