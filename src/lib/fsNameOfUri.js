@@ -61,7 +61,6 @@ export function fixFilename(pathname) {
   return result;
 }
 
-
 export function fsCacheNameOfUri(uri, rootName = "---root") {
   try {
     const parsedUrl = new URL(uri);
@@ -95,14 +94,14 @@ export function fsCacheNameOfUri(uri, rootName = "---root") {
 
 const defaultURLPatcher = new UrlPatcher();
 defaultURLPatcher
-  .addRule({
-    // adjust http & https to file
-    transform: (url) => {
-      url.protocol = "file";
-      return url;
-    },
-    includes: [/^http(s)?:\/\//],
-  })
+  // .addRule({
+  //   // adjust http & https to file
+  //   transform: (url) => {
+  //     url.protocol = "file";
+  //     return url;
+  //   },
+  //   includes: [/^http(s)?:\/\//],
+  // })
   .addRule({
     // Add index.html to the end of the pathname if it ends with a slash
     transform: (url, data) => {
@@ -188,40 +187,16 @@ defaultURLPatcher
     },
   });
 
-export function fsReadyNameOfUri(uri, rootName = "index", mime = null) {
-  try {
-    const parsedUrl = new URL(uri);
-
-    // Append rootName if the original URI ends with a slash
-    if (parsedUrl.pathname.endsWith("/") && rootName) {
-      parsedUrl.pathname += rootName;
-    }
-
-    if (parsedUrl.pathname && mime) {
-      const mimeExt = getExtensionOfMime(mime) || "";
-
-      if (mimeExt) {
-        parsedUrl.pathname += `.${mimeExt}`;
-      }
-    }
-
-    return parsedUrl.toString();
-  } catch (error) {
-    console.error(`Error in fsReadyNameOfUri (${uri}):`, error);
-    throw error;
-  }
-}
-
-export function fsNameOfUri({ uri, mime, patcher = defaultURLPatcher }) {
+export function fsReadyNameOfUri({ uri, mime, patcher = defaultURLPatcher }) {
   try {
     const mimeExt = getExtensionOfMime(mime);
     let url = patcher.patch(uri, { mimeExt });
 
-    let result = decodeURIComponent(url);
+    let result = decodeURIComponent(url).replace("%3F", "?");
 
-    return result.replace(/^file:\/\//, ""); // Remove file:// protocol for filesystem paths
+    return result; // Remove file:// protocol for filesystem paths
   } catch (error) {
-    console.error(`Error in fsNameOfUri (${uri}):`, error);
+    console.error(`Error in fsReadyNameOfUri (${uri}):`, uri, error);
     throw error;
   }
 }

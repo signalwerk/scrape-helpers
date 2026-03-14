@@ -9,6 +9,8 @@ export class QueueDriver {
     this.completed = new Set();
     this.failed = new Set();
     this.completionWaiters = [];
+    this.phaseCompletionWaiters = [];
+    this.deferredQueueNames = this.config.deferredQueues || [];
     this.sqliteLogger = new SqliteLogger(options.dbPath || "./scraping.db");
 
     // Create queues based on config
@@ -27,10 +29,33 @@ export class QueueDriver {
         resolver();
       }
     }
+    if (
+      this.deferredQueueNames.length > 0 &&
+      !this.hasWorkExcept(this.deferredQueueNames)
+    ) {
+      while (this.phaseCompletionWaiters.length > 0) {
+        const resolver = this.phaseCompletionWaiters.shift();
+        resolver();
+      }
+    }
   }
 
   hasWork() {
     return Object.values(this.queues).some((queue) => queue.hasWork());
+  }
+
+  hasWorkExcept(excludeNames = []) {
+    return Object.entries(this.queues)
+      .filter(([name]) => !excludeNames.includes(name))
+      .some(([, queue]) => queue.hasWork());
+  }
+
+  async waitForPhaseCompletion() {
+    while (this.hasWorkExcept(this.deferredQueueNames)) {
+      await new Promise((resolve) => {
+        this.phaseCompletionWaiters.push(resolve);
+      });
+    }
   }
 
   async waitForCompletion() {
@@ -75,13 +100,27 @@ export class QueueDriver {
       firstQueue.add(item);
     }
 
-    // Start all workers
-    const workers = [
-      ...Object.values(this.queues).map((queue) => queue.worker()),
-      this.monitor(),
-    ];
+    // Start all workers, deferring specified queues until phase 1 drains
+    const regularWorkers = Object.entries(this.queues)
+      .filter(([name]) => !this.deferredQueueNames.includes(name))
+      .map(([, queue]) => queue.worker());
 
-    // Wait for completion
+    const monitorWorker = this.monitor();
+
+    // If deferred queues exist, wait for phase 1 (all non-deferred) to drain first
+    if (this.deferredQueueNames.length > 0) {
+      await this.waitForPhaseCompletion();
+      baseLogger.log(
+        `Phase 1 complete, starting deferred queues: ${this.deferredQueueNames.join(", ")}`,
+      );
+    }
+
+    // Start deferred queue workers
+    const deferredWorkers = this.deferredQueueNames
+      .map((name) => this.queues[name]?.worker())
+      .filter(Boolean);
+
+    // Wait for full completion
     await this.waitForCompletion();
 
     // Stop workers
@@ -95,7 +134,7 @@ export class QueueDriver {
       }
     });
 
-    await Promise.all(workers);
+    await Promise.all([...regularWorkers, ...deferredWorkers, monitorWorker]);
 
     baseLogger.log("Queue driver completed");
     await this.printStats();

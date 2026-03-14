@@ -246,11 +246,14 @@ export function findResources() {
   });
 }
 
-export async function parseHtml(context, logger, htmlData) {
+export async function parseHtml({context, preProcess, logger, content}) {
   logger.log(`Parsing HTML content`);
 
   try {
-    const $ = cheerio.load(htmlData);
+    const $ = cheerio.load(content);
+    if (preProcess) {
+      preProcess($);
+    }
 
     let baseUrl =
       absoluteUrl($("base")?.attr("href") || "", context.normalizedUrl) ||
@@ -306,7 +309,7 @@ export async function parseHtml(context, logger, htmlData) {
   } catch (error) {
     logger.error(`Error processing HTML: ${error.message}`, {
       error: error.message,
-      htmlLength: htmlData?.length,
+      htmlLength: content?.length,
       parseStage: "html-parsing",
     });
     throw error;
